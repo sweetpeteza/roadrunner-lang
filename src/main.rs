@@ -1,3 +1,5 @@
+use roadrunner::token::Token;
+
 fn main() {
-    println!("Hello, world!");
+    dbg!("{}",Token::Illegal);
 }
