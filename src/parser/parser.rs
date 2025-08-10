@@ -1,3 +1,5 @@
+use rstest::rstest;
+
 use crate::{
     ast::{
         program::Program,
@@ -104,4 +106,22 @@ impl<'a> Parser<'a> {
         self.next_token(); // Move past the expected token
         Ok(())
     }
+}
+
+#[rstest]
+fn test_let_statement() {
+    let input = "
+        let x = 5;
+        let y = 10;
+        let foobar = 838383;
+        ";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    assert_eq!(program.statements.len(), 3);
+    assert_eq!(program.statements[0], StatementType::Let(LetStatement::new("x".to_string())));
+    assert_eq!(program.statements[1], StatementType::Let(LetStatement::new("y".to_string())));
+    assert_eq!(program.statements[2], StatementType::Let(LetStatement::new("foobar".to_string())));
 }

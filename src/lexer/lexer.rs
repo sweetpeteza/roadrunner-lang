@@ -1,3 +1,5 @@
+use rstest::rstest;
+
 use crate::token::token::{Token, lookup_ident};
 pub struct Lexer<'a> {
     input: &'a str,
@@ -108,7 +110,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-#[test]
+#[rstest]
 fn test_next_token() {
     let input = "=+(){},;";
     let mut lexer = Lexer::new(input);
@@ -124,7 +126,7 @@ fn test_next_token() {
     }
 }
 
-#[test]
+#[rstest]
 fn test_next_token_2() {
     use crate::token::token::Token::*;
     let input = "
@@ -197,7 +199,7 @@ fn test_next_token_2() {
     }
 }
 
-#[test]
+#[rstest]
 fn test_next_token_operators() {
     use crate::token::token::Token::*;
     let input = "

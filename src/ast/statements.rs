@@ -1,9 +1,11 @@
 use super::traits::{Node, Statement};
 
+#[derive(PartialEq, Debug)]
 pub enum StatementType {
     Let(LetStatement),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct LetStatement {
     pub name: String,
 }
