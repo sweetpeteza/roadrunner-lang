@@ -1,5 +1,4 @@
-use crate::token::{self, Token};
-
+use crate::token::token::{Token, lookup_ident};
 pub struct Lexer<'a> {
     input: &'a str,
     position: usize,
@@ -38,7 +37,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> Token {
-        use crate::token::Token::*;
+        use crate::token::token::Token::*;
         self.skip_whitespace();
 
         let token = match self.ch {
@@ -70,7 +69,8 @@ impl<'a> Lexer<'a> {
             '}' => Rbrace,
             '\0' => Eof,
             _ if self.ch.is_alphabetic() || self.ch == '_' => {
-                return token::lookup_ident(&self.read_identifier());
+                let ident = self.read_identifier();
+                return lookup_ident(&ident);
             }
             _ if self.ch.is_digit(10) => {
                 let literal = self.read_number();
@@ -112,7 +112,7 @@ impl<'a> Lexer<'a> {
 fn test_next_token() {
     let input = "=+(){},;";
     let mut lexer = Lexer::new(input);
-    use crate::token::Token::*;
+    use crate::token::token::Token::*;
 
     let tests = vec![
         Assign, Plus, Lparen, Rparen, Lbrace, Rbrace, Comma, Semicolon, Eof,
@@ -126,8 +126,7 @@ fn test_next_token() {
 
 #[test]
 fn test_next_token_2() {
-    use super::token::*;
-    use crate::token::Token::*;
+    use crate::token::token::Token::*;
     let input = "
     let five = 5;
     let ten = 10;
@@ -200,7 +199,7 @@ fn test_next_token_2() {
 
 #[test]
 fn test_next_token_operators() {
-    use crate::token::Token::*;
+    use crate::token::token::Token::*;
     let input = "
     let five = 5;
     let ten = 10;

@@ -1,5 +1,7 @@
+use roadrunner::lexer::lexer::Lexer;
+use roadrunner::token::token::Token;
 use rustyline::error::ReadlineError;
-use rustyline::{DefaultEditor};
+use rustyline::DefaultEditor;
 
 fn main() -> Result<(), anyhow::Error> {
     println!("Hello! This is the Roadrunner programming language!");
@@ -11,12 +13,16 @@ fn main() -> Result<(), anyhow::Error> {
         let readline = rl.readline("⚡: ");
         match readline {
             Ok(line) => {
-
                 // Tokenize the input here, for example:
-                // let tokens = tokenize(line);
-                // for token in tokens { println!("{:?}", token); }
+                let mut lexer = Lexer::new(&line);
 
-                println!("You typed: {}", line);  // Placeholder for your lexer
+                loop {
+                    let token = lexer.next_token();
+                    if token == Token::Eof {
+                        break;
+                    }
+                    println!("{:?}", token);
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C pressed. Exiting.");
