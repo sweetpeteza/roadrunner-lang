@@ -60,12 +60,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_let_statement(&mut self) -> Result<StatementType, ParseError> {
-        self.expect_peek(Token::Let).map_err(|_| ParseError {
-            message: "Expected 'let' keyword".to_string(),
-            token: self.peek_token.clone(),
-        })?;
-
-        let name = if let Token::Ident(name) = self.current_token.clone() {
+        let name = if let Token::Ident(name) = self.peek_token.clone() {
             name
         } else {
             return Err(ParseError {
@@ -76,14 +71,16 @@ impl<'a> Parser<'a> {
 
         self.next_token(); // Move past the identifier
 
-        if self.current_token != Token::Assign {
+        if self.peek_token != Token::Assign {
             return Err(ParseError {
                 message: "Expected '=' after variable name".to_string(),
                 token: self.current_token.clone(),
             });
         }
 
-        self.next_token(); // Move past '='
+        while self.current_token != Token::Semicolon {
+            self.next_token(); // Skip tokens until we reach a semicolon
+        }
 
         // Here you would parse the value, but for simplicity, we will skip it
         // In a complete implementation, you would handle expressions here
@@ -96,16 +93,16 @@ impl<'a> Parser<'a> {
         self.peek_token = self.lexer.next_token();
     }
 
-    fn expect_peek(&mut self, expected: Token) -> Result<(), ParseError> {
-        if self.peek_token != expected {
-            return Err(ParseError {
-                message: format!("Expected token: {}, got: {}", expected, self.peek_token),
-                token: self.peek_token.clone(),
-            });
-        }
-        self.next_token(); // Move past the expected token
-        Ok(())
-    }
+    // fn expect_peek(&mut self, expected: Token) -> Result<(), ParseError> {
+    //     if self.peek_token != expected {
+    //         return Err(ParseError {
+    //             message: format!("Expected token: {}, got: {}", expected, self.peek_token),
+    //             token: self.peek_token.clone(),
+    //         });
+    //     }
+    //     self.next_token(); // Move past the expected token
+    //     Ok(())
+    // }
 }
 
 #[rstest]
@@ -120,6 +117,10 @@ fn test_let_statement() {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
 
+    parser.errors.iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+    assert_eq!(parser.errors.len(), 0);
     assert_eq!(program.statements.len(), 3);
     assert_eq!(program.statements[0], StatementType::Let(LetStatement::new("x".to_string())));
     assert_eq!(program.statements[1], StatementType::Let(LetStatement::new("y".to_string())));
