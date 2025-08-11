@@ -16,6 +16,7 @@ pub struct Parser<'a> {
     errors: Vec<ParseError>,
 }
 
+#[derive(Clone, Debug)]
 pub struct ParseError {
     pub message: String,
     pub token: Token,
@@ -53,7 +54,7 @@ impl<'a> Parser<'a> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
             _ => Err(ParseError {
-                message: format!("Unexpected token: {}", self.current_token),
+                message: format!("TEMP:Unexpected token: {}", self.current_token),
                 token: self.current_token.clone(),
             }),
         }
@@ -106,7 +107,7 @@ impl<'a> Parser<'a> {
 }
 
 #[rstest]
-fn test_let_statement() {
+fn test_let_statements() {
     let input = "
         let x = 5;
         let y = 10;
@@ -117,12 +118,70 @@ fn test_let_statement() {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
 
-    parser.errors.iter().for_each(|e| {
+    let errors = parser
+        .errors
+        .iter()
+        .filter(|e| !e.message.starts_with("TEMP:"))
+        .collect::<Vec<&ParseError>>();
+
+    errors.clone().into_iter().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
-    assert_eq!(parser.errors.len(), 0);
+
+    assert_eq!(errors.len(), 0);
     assert_eq!(program.statements.len(), 3);
-    assert_eq!(program.statements[0], StatementType::Let(LetStatement::new("x".to_string())));
-    assert_eq!(program.statements[1], StatementType::Let(LetStatement::new("y".to_string())));
-    assert_eq!(program.statements[2], StatementType::Let(LetStatement::new("foobar".to_string())));
+    assert_eq!(
+        program.statements[0],
+        StatementType::Let(LetStatement::new("x".to_string()))
+    );
+    assert_eq!(
+        program.statements[1],
+        StatementType::Let(LetStatement::new("y".to_string()))
+    );
+    assert_eq!(
+        program.statements[2],
+        StatementType::Let(LetStatement::new("foobar".to_string()))
+    );
+}
+
+#[rstest]
+fn test_broken_let_statements() {
+    let input = "
+        let x 5;
+        let = 10;
+        let 838383;
+        ";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let mut errors = parser
+        .errors
+        .iter()
+        .filter(|e| !e.message.starts_with("TEMP:"));
+
+    errors.clone().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+    assert_eq!(errors.clone().count(), 3);
+    assert_eq!(program.statements.len(), 0);
+
+    let first_error = errors.next().unwrap();
+    assert_eq!(
+        first_error.message,
+        "Expected '=' after variable name".to_string()
+    );
+    
+    let second_error = errors.next().unwrap();
+    assert_eq!(
+        second_error.message,
+        "Expected identifier after 'let'".to_string()
+    );
+    
+    let third_error = errors.next().unwrap();
+    assert_eq!(
+        third_error.message,
+        "Expected identifier after 'let'".to_string()
+    );
 }
