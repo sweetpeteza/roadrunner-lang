@@ -42,21 +42,23 @@ impl<'a> Parser<'a> {
 
         while self.current_token != Token::Eof {
             match self.parse_statement() {
-                Ok(statement) => program.statements.push(statement),
-                Err(e) => self.errors.push(e), // Return on error
+                Some(Ok(statement)) => {
+                    program.statements.push(statement);
+                }
+                Some(Err(e)) => {
+                    self.errors.push(e); // Collect errors
+                }
+                None => {}
             }
             self.next_token(); // Move to the next token
         }
         program
     }
 
-    fn parse_statement(&mut self) -> Result<StatementType, ParseError> {
+    fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
         match self.current_token {
-            Token::Let => self.parse_let_statement(),
-            _ => Err(ParseError {
-                message: format!("TEMP:Unexpected token: {}", self.current_token),
-                token: self.current_token.clone(),
-            }),
+            Token::Let => Some(self.parse_let_statement()),
+            _ => None,
         }
     }
 
@@ -156,29 +158,26 @@ fn test_broken_let_statements() {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
 
-    let mut errors = parser
-        .errors
-        .iter()
-        .filter(|e| !e.message.starts_with("TEMP:"));
-
-    errors.clone().for_each(|e| {
+    parser.errors.clone().into_iter().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
-    assert_eq!(errors.clone().count(), 3);
+    assert_eq!(parser.errors.len(), 3);
     assert_eq!(program.statements.len(), 0);
+
+    let mut errors = parser.errors.into_iter();
 
     let first_error = errors.next().unwrap();
     assert_eq!(
         first_error.message,
         "Expected '=' after variable name".to_string()
     );
-    
+
     let second_error = errors.next().unwrap();
     assert_eq!(
         second_error.message,
         "Expected identifier after 'let'".to_string()
     );
-    
+
     let third_error = errors.next().unwrap();
     assert_eq!(
         third_error.message,
