@@ -16,6 +16,7 @@ impl Program {
         if let Some(first_statement) = self.statements.first() {
             match first_statement {
                 StatementType::Let(let_stmt) => let_stmt.token_literal(),
+                StatementType::Return(return_stmt) => return_stmt.token_literal(),
                 // Add more cases for different statement types
             }
         } else {

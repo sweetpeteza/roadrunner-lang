@@ -3,7 +3,7 @@ use rstest::rstest;
 use crate::{
     ast::{
         program::Program,
-        statements::{LetStatement, StatementType},
+        statements::{Identifier, LetStatement, ReturnStatement, StatementType},
     },
     lexer::lexer::Lexer,
     token::token::Token,
@@ -58,6 +58,7 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
         match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
+            Token::Return => Some(self.parse_return_statement()),
             _ => None,
         }
     }
@@ -88,7 +89,19 @@ impl<'a> Parser<'a> {
         // Here you would parse the value, but for simplicity, we will skip it
         // In a complete implementation, you would handle expressions here
 
-        Ok(StatementType::Let(LetStatement::new(name)))
+        Ok(StatementType::Let(LetStatement::new(Identifier::new(name))))
+    }
+
+    fn parse_return_statement(&mut self) -> Result<StatementType, ParseError> {
+        let return_statement = ReturnStatement {
+            token: self.current_token.clone(),
+        };
+
+        while self.current_token != Token::Semicolon {
+            self.next_token(); // Skip tokens until we reach a semicolon
+        }
+
+        Ok(StatementType::Return(return_statement))
     }
 
     pub fn next_token(&mut self) {
@@ -134,15 +147,15 @@ fn test_let_statements() {
     assert_eq!(program.statements.len(), 3);
     assert_eq!(
         program.statements[0],
-        StatementType::Let(LetStatement::new("x".to_string()))
+        StatementType::Let(LetStatement::new(Identifier::new("x".to_string())))
     );
     assert_eq!(
         program.statements[1],
-        StatementType::Let(LetStatement::new("y".to_string()))
+        StatementType::Let(LetStatement::new(Identifier::new("y".to_string())))
     );
     assert_eq!(
         program.statements[2],
-        StatementType::Let(LetStatement::new("foobar".to_string()))
+        StatementType::Let(LetStatement::new(Identifier::new("foobar".to_string())))
     );
 }
 
