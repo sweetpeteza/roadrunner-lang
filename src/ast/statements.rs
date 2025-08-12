@@ -3,13 +3,13 @@ use crate::{ast::traits::Expression};
 use super::traits::{Node, Statement};
 
 #[derive(PartialEq, Debug)]
-pub enum StatementType<E: Expression> {
+pub enum StatementType<E> where E : Expression {
     Let(LetStatement<E>),
     Return(ReturnStatement<E>),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct LetStatement<E: Expression> {
+pub struct LetStatement<E> where E : Expression {
     pub name: Identifier,
     pub value: Option<E>,
 }
@@ -53,7 +53,7 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ReturnStatement<E: Expression> {
+pub struct ReturnStatement<E> where E : Expression {
     pub return_value: Option<E>,
 }
 
@@ -116,11 +116,11 @@ impl Expression for Identifier {
     fn expression_node(&self) {}
 }
 
-pub struct ExpressionStatement {
-    pub expression: Option<Box<dyn Expression>>,
+pub struct ExpressionStatement<E> where E: Expression {
+    pub expression: Option<Box<E>>,
 }
 
-impl Node for ExpressionStatement {
+impl<E> Node for ExpressionStatement<E> where E: Expression {
     fn token_literal(&self) -> String {
         if let Some(ref expr) = self.expression {
             expr.token_literal()

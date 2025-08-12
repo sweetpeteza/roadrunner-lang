@@ -4,7 +4,7 @@ use super::statements::{StatementType};
 use super::traits::{Node};
 
 #[derive(Debug)]
-pub struct Program<E: Expression> {
+pub struct Program<E> where E: Expression {
     pub statements: Vec<StatementType<E>>
 }
 
