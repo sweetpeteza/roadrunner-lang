@@ -4,7 +4,8 @@ use rstest::rstest;
 
 use crate::{
     ast::{
-        identifier::Identifier, let_statement::LetStatement, program::Program, return_statement::ReturnStatement, statement_types::StatementType, traits::{Expression, Node}
+        identifier::Identifier, let_statement::LetStatement, program::Program,
+        return_statement::ReturnStatement, statement_types::StatementType, traits::Expression,
     },
     lexer::lexer::Lexer,
     token::token::Token,
@@ -146,6 +147,8 @@ fn test_let_statements() {
     #[derive(Debug, PartialEq)]
     struct DummyStatement;
 
+    use crate::ast::traits::{Expression, Node};
+
     impl Node for DummyStatement {
         fn token_literal(&self) -> String {
             "dummy".to_string()
@@ -204,6 +207,8 @@ fn test_broken_let_statements() {
     #[derive(Debug, PartialEq)]
     struct DummyStatement;
 
+    use crate::ast::traits::{Expression, Node};
+
     impl Node for DummyStatement {
         fn token_literal(&self) -> String {
             "dummy".to_string()
@@ -259,6 +264,8 @@ fn test_return_statements() {
 
     #[derive(Debug, PartialEq)]
     struct DummyStatement;
+
+    use crate::ast::traits::{Expression, Node};
 
     impl Node for DummyStatement {
         fn token_literal(&self) -> String {
