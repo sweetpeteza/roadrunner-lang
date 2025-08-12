@@ -4,9 +4,7 @@ use rstest::rstest;
 
 use crate::{
     ast::{
-        program::Program,
-        statements::{Identifier, LetStatement, ReturnStatement, StatementType},
-        traits::{Expression, Node},
+        identifier::Identifier, let_statement::LetStatement, program::Program, return_statement::ReturnStatement, statement_types::StatementType, traits::{Expression, Node}
     },
     lexer::lexer::Lexer,
     token::token::Token,

@@ -1,6 +1,6 @@
 use crate::ast::traits::Expression;
 
-use super::statements::{StatementType};
+use super::statement_types::{StatementType};
 use super::traits::{Node};
 
 #[derive(Debug)]
