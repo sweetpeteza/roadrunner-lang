@@ -1,9 +1,12 @@
+use std::fmt::Debug;
+
 use rstest::rstest;
 
 use crate::{
     ast::{
         program::Program,
         statements::{Identifier, LetStatement, ReturnStatement, StatementType},
+        traits::{Expression, Node},
     },
     lexer::lexer::Lexer,
     token::token::Token,
@@ -37,7 +40,10 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse_program<E>(&mut self) -> Program<E>
+    where
+        E: Expression,
+    {
         let mut program = Program::new();
 
         while self.current_token != Token::Eof {
@@ -55,7 +61,10 @@ impl<'a> Parser<'a> {
         program
     }
 
-    fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
+    fn parse_statement<E>(&mut self) -> Option<Result<StatementType<E>, ParseError>>
+    where
+        E: Expression,
+    {
         match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
             Token::Return => Some(self.parse_return_statement()),
@@ -63,7 +72,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_let_statement(&mut self) -> Result<StatementType, ParseError> {
+    fn parse_let_statement<E>(&mut self) -> Result<StatementType<E>, ParseError>
+    where
+        E: Expression,
+    {
         let name = if let Token::Ident(name) = self.peek_token.clone() {
             name
         } else {
@@ -89,13 +101,17 @@ impl<'a> Parser<'a> {
         // Here you would parse the value, but for simplicity, we will skip it
         // In a complete implementation, you would handle expressions here
 
-        Ok(StatementType::Let(LetStatement::new(Identifier::new(name))))
+        Ok(StatementType::Let(LetStatement::new(
+            Identifier::new(name),
+            None,
+        )))
     }
 
-    fn parse_return_statement(&mut self) -> Result<StatementType, ParseError> {
-        let return_statement = ReturnStatement {
-            token: self.current_token.clone(),
-        };
+    fn parse_return_statement<E>(&mut self) -> Result<StatementType<E>, ParseError>
+    where
+        E: Expression,
+    {
+        let return_statement = ReturnStatement::new(None);
 
         while self.current_token != Token::Semicolon {
             self.next_token(); // Skip tokens until we reach a semicolon
@@ -129,9 +145,26 @@ fn test_let_statements() {
         let foobar = 838383;
         ";
 
+    #[derive(Debug, PartialEq)]
+    struct DummyStatement;
+
+    impl Node for DummyStatement {
+        fn token_literal(&self) -> String {
+            "dummy".to_string()
+        }
+
+        fn string(&self) -> String {
+            "dummy".to_string()
+        }
+    }
+
+    impl Expression for DummyStatement {
+        fn expression_node(&self) {}
+    }
+
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
-    let program = parser.parse_program();
+    let program: Program<DummyStatement> = parser.parse_program();
 
     let errors = parser
         .errors
@@ -147,15 +180,18 @@ fn test_let_statements() {
     assert_eq!(program.statements.len(), 3);
     assert_eq!(
         program.statements[0],
-        StatementType::Let(LetStatement::new(Identifier::new("x".to_string())))
+        StatementType::Let(LetStatement::new(Identifier::new("x".to_string()), None))
     );
     assert_eq!(
         program.statements[1],
-        StatementType::Let(LetStatement::new(Identifier::new("y".to_string())))
+        StatementType::Let(LetStatement::new(Identifier::new("y".to_string()), None))
     );
     assert_eq!(
         program.statements[2],
-        StatementType::Let(LetStatement::new(Identifier::new("foobar".to_string())))
+        StatementType::Let(LetStatement::new(
+            Identifier::new("foobar".to_string()),
+            None
+        ))
     );
 }
 
@@ -167,9 +203,26 @@ fn test_broken_let_statements() {
         let 838383;
         ";
 
+    #[derive(Debug, PartialEq)]
+    struct DummyStatement;
+
+    impl Node for DummyStatement {
+        fn token_literal(&self) -> String {
+            "dummy".to_string()
+        }
+
+        fn string(&self) -> String {
+            "dummy".to_string()
+        }
+    }
+
+    impl Expression for DummyStatement {
+        fn expression_node(&self) {}
+    }
+
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
-    let program = parser.parse_program();
+    let program: Program<DummyStatement> = parser.parse_program();
 
     parser.errors.clone().into_iter().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
@@ -195,5 +248,49 @@ fn test_broken_let_statements() {
     assert_eq!(
         third_error.message,
         "Expected identifier after 'let'".to_string()
+    );
+}
+
+#[rstest]
+fn test_return_statements() {
+    let input = "
+        return 5;
+        return 10;
+        return 838383;
+        ";
+
+    #[derive(Debug, PartialEq)]
+    struct DummyStatement;
+
+    impl Node for DummyStatement {
+        fn token_literal(&self) -> String {
+            "dummy".to_string()
+        }
+
+        fn string(&self) -> String {
+            "dummy".to_string()
+        }
+    }
+
+    impl Expression for DummyStatement {
+        fn expression_node(&self) {}
+    }
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program: Program<DummyStatement> = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(program.statements.len(), 3);
+
+    assert_eq!(
+        program.statements[0],
+        StatementType::Return(ReturnStatement::new(None))
     );
 }

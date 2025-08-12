@@ -1,46 +1,93 @@
-use crate::{ast::traits::Expression, token::token::Token};
+use crate::{ast::traits::Expression};
 
 use super::traits::{Node, Statement};
 
 #[derive(PartialEq, Debug)]
-pub enum StatementType {
-    Let(LetStatement),
-    Return(ReturnStatement),
+pub enum StatementType<E: Expression> {
+    Let(LetStatement<E>),
+    Return(ReturnStatement<E>),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct LetStatement {
+pub struct LetStatement<E: Expression> {
     pub name: Identifier,
+    pub value: Option<E>,
 }
 
-impl LetStatement {
-    pub fn new(name: Identifier) -> Self {
-        LetStatement { name }
+impl<E> LetStatement<E>
+where
+    E: Expression,
+{
+    pub fn new(name: Identifier, value: Option<E>) -> Self {
+        LetStatement { name, value }
     }
 }
 
-impl Node for LetStatement {
+impl<E> Node for LetStatement<E>
+where
+    E: Expression,
+{
     fn token_literal(&self) -> String {
         "let".to_string()
     }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&self.token_literal());
+        out.push(' ');
+        out.push_str(&self.name.token_literal());
+        out.push_str(" = ");
+        out.push_str(&self.name.value);
+
+        out.push(';');
+
+        out
+    }
 }
 
-impl Statement for LetStatement {
+impl<E> Statement for LetStatement<E>
+where
+    E: Expression,
+{
     fn statement_node(&self) {}
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ReturnStatement {
-    pub token: Token,
+pub struct ReturnStatement<E: Expression> {
+    pub return_value: Option<E>,
 }
 
-impl Node for ReturnStatement {
-    fn token_literal(&self) -> String {
-        "return".to_string()
+impl<E> ReturnStatement<E>
+where
+    E: Expression,
+{
+    pub fn new(return_value: Option<E>) -> Self {
+        ReturnStatement {
+            return_value,
+        }
     }
 }
 
-impl Statement for ReturnStatement {
+impl<E> Node for ReturnStatement<E>
+where
+    E: Expression,
+{
+    fn token_literal(&self) -> String {
+        "return".to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&self.token_literal());
+        out.push(';');
+        out
+    }
+}
+
+impl<E> Statement for ReturnStatement<E>
+where
+    E: Expression,
+{
     fn statement_node(&self) {}
 }
 
@@ -51,9 +98,7 @@ pub struct Identifier {
 
 impl Identifier {
     pub fn new(value: String) -> Self {
-        Identifier {
-            value
-        }
+        Identifier { value }
     }
 }
 
@@ -61,8 +106,34 @@ impl Node for Identifier {
     fn token_literal(&self) -> String {
         self.value.clone()
     }
+
+    fn string(&self) -> String {
+        todo!()
+    }
 }
 
 impl Expression for Identifier {
     fn expression_node(&self) {}
+}
+
+pub struct ExpressionStatement {
+    pub expression: Option<Box<dyn Expression>>,
+}
+
+impl Node for ExpressionStatement {
+    fn token_literal(&self) -> String {
+        if let Some(ref expr) = self.expression {
+            expr.token_literal()
+        } else {
+            "".to_string()
+        }
+    }
+
+    fn string(&self) -> String {
+        if let Some(ref expr) = self.expression {
+            expr.string()
+        } else {
+            "".to_string()
+        }
+    }
 }
