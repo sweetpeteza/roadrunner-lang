@@ -111,7 +111,7 @@ impl<'a> Lexer<'a> {
 }
 
 #[rstest]
-fn test_next_token() {
+fn test_next_token_simple() {
     let input = "=+(){},;";
     let mut lexer = Lexer::new(input);
     use crate::token::token::Token::*;
@@ -127,7 +127,7 @@ fn test_next_token() {
 }
 
 #[rstest]
-fn test_next_token_2() {
+fn test_next_token_statements() {
     use crate::token::token::Token::*;
     let input = "
     let five = 5;
@@ -200,7 +200,7 @@ fn test_next_token_2() {
 }
 
 #[rstest]
-fn test_next_token_operators() {
+fn test_next_token_statements_and_operators() {
     use crate::token::token::Token::*;
     let input = "
     let five = 5;
