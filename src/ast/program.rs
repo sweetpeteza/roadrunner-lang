@@ -1,3 +1,5 @@
+use rstest::rstest;
+
 use super::statement_types::StatementType;
 use super::traits::Node;
 
@@ -34,8 +36,30 @@ impl Node for Program {
                 StatementType::Return(return_stmt) => out.push_str(&return_stmt.string()),
                 // Add more cases for different statement types
             }
-            out.push_str("\n");
         }
         out
     }
+}
+
+#[rstest]
+fn test_program_string() {
+    use crate::ast::identifier::Identifier;
+    use crate::ast::let_statement::LetStatement;
+    use crate::token::token::Token;
+
+    const EXPECTED: &str = "let myVar = anotherVar;";
+
+    let program = Program {
+        statements: vec![StatementType::Let(LetStatement {
+            token: Token::Let,
+            name: Identifier {
+                value: "myVar".to_string(),
+            },
+            value: Some(Box::new(Identifier {
+                value: "anotherVar".to_string(),
+            })),
+        })],
+    };
+
+    assert_eq!(program.string(), EXPECTED);
 }

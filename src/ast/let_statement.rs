@@ -36,7 +36,7 @@ impl LetStatement {
 
 impl Node for LetStatement {
     fn token_literal(&self) -> String {
-        "let".to_string()
+        self.token.to_literal()
     }
 
     fn string(&self) -> String {
@@ -45,7 +45,7 @@ impl Node for LetStatement {
         out.push(' ');
         out.push_str(&self.name.token_literal());
         out.push_str(" = ");
-        out.push_str(&self.name.value);
+        out.push_str(&self.value.as_ref().map_or("nil".to_string(), |v| v.string()));
 
         out.push(';');
 

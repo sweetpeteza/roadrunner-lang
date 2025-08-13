@@ -37,7 +37,7 @@ impl ReturnStatement {
 
 impl Node for ReturnStatement {
     fn token_literal(&self) -> String {
-        "return".to_string()
+        self.token.to_literal()
     }
 
     fn string(&self) -> String {

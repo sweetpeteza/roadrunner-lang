@@ -17,7 +17,7 @@ impl Node for Identifier {
     }
 
     fn string(&self) -> String {
-        todo!()
+        self.value.clone()
     }
 }
 
