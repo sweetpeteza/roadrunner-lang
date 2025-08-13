@@ -1,6 +1,10 @@
-use crate::ast::traits::{Expression, Node, Statement};
+use crate::{
+    ast::traits::{Expression, Node, Statement},
+    token::token::Token,
+};
 
 pub struct ReturnStatement {
+    pub token: Token,
     pub return_value: Option<Box<dyn Expression>>,
 }
 
@@ -23,8 +27,11 @@ impl std::fmt::Debug for ReturnStatement {
 }
 
 impl ReturnStatement {
-    pub fn new(return_value: Option<Box<dyn Expression>>) -> Self {
-        ReturnStatement { return_value }
+    pub fn new(token: Token, return_value: Option<Box<dyn Expression>>) -> Self {
+        ReturnStatement {
+            token,
+            return_value,
+        }
     }
 }
 

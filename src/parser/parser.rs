@@ -101,7 +101,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> Result<StatementType, ParseError> {
-        let return_statement = ReturnStatement::new(None);
+        let return_token = self.current_token.clone();
+        let return_statement = ReturnStatement::new(return_token, None);
 
         while self.current_token != Token::Semicolon {
             self.next_token(); // Skip tokens until we reach a semicolon
@@ -239,6 +240,6 @@ fn test_return_statements() {
 
     assert_eq!(
         program.statements[0],
-        StatementType::Return(ReturnStatement::new(None))
+        StatementType::Return(ReturnStatement::new(Token::Return, None))
     );
 }
