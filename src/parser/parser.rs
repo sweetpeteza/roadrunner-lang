@@ -5,7 +5,7 @@ use rstest::rstest;
 use crate::{
     ast::{
         identifier::Identifier, let_statement::LetStatement, program::Program,
-        return_statement::ReturnStatement, statement_types::StatementType, traits::Expression,
+        return_statement::ReturnStatement, statement_types::StatementType,
     },
     lexer::lexer::Lexer,
     token::token::Token,
@@ -39,10 +39,7 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    pub fn parse_program<E>(&mut self) -> Program<E>
-    where
-        E: Expression,
-    {
+    pub fn parse_program(&mut self) -> Program {
         let mut program = Program::new();
 
         while self.current_token != Token::Eof {
@@ -60,10 +57,7 @@ impl<'a> Parser<'a> {
         program
     }
 
-    fn parse_statement<E>(&mut self) -> Option<Result<StatementType<E>, ParseError>>
-    where
-        E: Expression,
-    {
+    fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
         match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
             Token::Return => Some(self.parse_return_statement()),
@@ -71,10 +65,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_let_statement<E>(&mut self) -> Result<StatementType<E>, ParseError>
-    where
-        E: Expression,
-    {
+    fn parse_let_statement(&mut self) -> Result<StatementType, ParseError> {
         let name = if let Token::Ident(name) = self.peek_token.clone() {
             name
         } else {
@@ -106,10 +97,7 @@ impl<'a> Parser<'a> {
         )))
     }
 
-    fn parse_return_statement<E>(&mut self) -> Result<StatementType<E>, ParseError>
-    where
-        E: Expression,
-    {
+    fn parse_return_statement(&mut self) -> Result<StatementType, ParseError> {
         let return_statement = ReturnStatement::new(None);
 
         while self.current_token != Token::Semicolon {
@@ -144,28 +132,9 @@ fn test_let_statements() {
         let foobar = 838383;
         ";
 
-    #[derive(Debug, PartialEq)]
-    struct DummyStatement;
-
-    use crate::ast::traits::{Expression, Node};
-
-    impl Node for DummyStatement {
-        fn token_literal(&self) -> String {
-            "dummy".to_string()
-        }
-
-        fn string(&self) -> String {
-            "dummy".to_string()
-        }
-    }
-
-    impl Expression for DummyStatement {
-        fn expression_node(&self) {}
-    }
-
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
-    let program: Program<DummyStatement> = parser.parse_program();
+    let program = parser.parse_program();
 
     let errors = parser
         .errors
@@ -204,28 +173,9 @@ fn test_broken_let_statements() {
         let 838383;
         ";
 
-    #[derive(Debug, PartialEq)]
-    struct DummyStatement;
-
-    use crate::ast::traits::{Expression, Node};
-
-    impl Node for DummyStatement {
-        fn token_literal(&self) -> String {
-            "dummy".to_string()
-        }
-
-        fn string(&self) -> String {
-            "dummy".to_string()
-        }
-    }
-
-    impl Expression for DummyStatement {
-        fn expression_node(&self) {}
-    }
-
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
-    let program: Program<DummyStatement> = parser.parse_program();
+    let program = parser.parse_program();
 
     parser.errors.clone().into_iter().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
@@ -262,28 +212,9 @@ fn test_return_statements() {
         return 838383;
         ";
 
-    #[derive(Debug, PartialEq)]
-    struct DummyStatement;
-
-    use crate::ast::traits::{Expression, Node};
-
-    impl Node for DummyStatement {
-        fn token_literal(&self) -> String {
-            "dummy".to_string()
-        }
-
-        fn string(&self) -> String {
-            "dummy".to_string()
-        }
-    }
-
-    impl Expression for DummyStatement {
-        fn expression_node(&self) {}
-    }
-
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
-    let program: Program<DummyStatement> = parser.parse_program();
+    let program = parser.parse_program();
 
     let errors = parser.errors.into_iter();
 

@@ -1,8 +1,7 @@
-use crate::ast::{let_statement::LetStatement, return_statement::ReturnStatement, traits::Expression};
+use crate::ast::{let_statement::LetStatement, return_statement::ReturnStatement};
 
 #[derive(PartialEq, Debug)]
-pub enum StatementType<E> where E : Expression {
-    Let(LetStatement<E>),
-    Return(ReturnStatement<E>),
+pub enum StatementType {
+    Let(LetStatement),
+    Return(ReturnStatement),
 }
-

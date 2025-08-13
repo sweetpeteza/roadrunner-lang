@@ -1,25 +1,34 @@
-use crate::ast::{traits::{Expression, Node, Statement}};
+use crate::ast::traits::{Expression, Node, Statement};
 
-#[derive(Debug, PartialEq)]
-pub struct ReturnStatement<E> where E : Expression {
-    pub return_value: Option<E>,
+pub struct ReturnStatement {
+    pub return_value: Option<Box<dyn Expression>>,
 }
 
-impl<E> ReturnStatement<E>
-where
-    E: Expression,
-{
-    pub fn new(return_value: Option<E>) -> Self {
-        ReturnStatement {
-            return_value,
-        }
+impl PartialEq for ReturnStatement {
+    fn eq(&self, other: &Self) -> bool {
+        self.return_value.as_ref().map(|v| v.string())
+            == other.return_value.as_ref().map(|v| v.string())
     }
 }
 
-impl<E> Node for ReturnStatement<E>
-where
-    E: Expression,
-{
+impl std::fmt::Debug for ReturnStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReturnStatement")
+            .field(
+                "return_value",
+                &self.return_value.as_ref().map(|v| v.string()),
+            )
+            .finish()
+    }
+}
+
+impl ReturnStatement {
+    pub fn new(return_value: Option<Box<dyn Expression>>) -> Self {
+        ReturnStatement { return_value }
+    }
+}
+
+impl Node for ReturnStatement {
     fn token_literal(&self) -> String {
         "return".to_string()
     }
@@ -32,11 +41,6 @@ where
     }
 }
 
-impl<E> Statement for ReturnStatement<E>
-where
-    E: Expression,
-{
+impl Statement for ReturnStatement {
     fn statement_node(&self) {}
 }
-
-

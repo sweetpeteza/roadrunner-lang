@@ -1,7 +1,7 @@
 use roadrunner::lexer::lexer::Lexer;
 use roadrunner::token::token::Token;
-use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
 
 fn main() -> Result<(), anyhow::Error> {
     println!("Hello! This is the Roadrunner programming language!");

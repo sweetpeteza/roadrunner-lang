@@ -1,10 +1,10 @@
 use crate::ast::traits::{Expression, Node};
 
-pub struct ExpressionStatement<E> where E: Expression {
-    pub expression: Option<Box<E>>,
+pub struct ExpressionStatement {
+    pub expression: Option<Box<dyn Expression>>,
 }
 
-impl<E> Node for ExpressionStatement<E> where E: Expression {
+impl Node for ExpressionStatement {
     fn token_literal(&self) -> String {
         if let Some(ref expr) = self.expression {
             expr.token_literal()

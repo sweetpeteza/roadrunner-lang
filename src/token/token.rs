@@ -62,7 +62,7 @@ impl Display for Token {
             Token::Else => write!(f, "else"),
             Token::Return => write!(f, "return"),
         }
-   }
+    }
 }
 
 pub const KEYWORDS: [(&str, Token); 7] = [

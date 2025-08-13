@@ -1,24 +1,36 @@
-use crate::ast::{identifier::Identifier, traits::{Expression, Node, Statement}};
+use crate::ast::{
+    identifier::Identifier,
+    traits::{Expression, Node, Statement},
+};
 
-#[derive(Debug, PartialEq)]
-pub struct LetStatement<E> where E : Expression {
+pub struct LetStatement {
     pub name: Identifier,
-    pub value: Option<E>,
+    pub value: Option<Box<dyn Expression>>,
 }
 
-impl<E> LetStatement<E>
-where
-    E: Expression,
-{
-    pub fn new(name: Identifier, value: Option<E>) -> Self {
+impl PartialEq for LetStatement {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.value.as_ref().map(|v| v.string()) == other.value.as_ref().map(|v| v.string())
+    }
+}
+
+impl std::fmt::Debug for LetStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LetStatement")
+            .field("name", &self.name)
+            .field("value", &self.value.as_ref().map(|v| v.string()))
+            .finish()
+    }
+}
+
+impl LetStatement {
+    pub fn new(name: Identifier, value: Option<Box<dyn Expression>>) -> Self {
         LetStatement { name, value }
     }
 }
 
-impl<E> Node for LetStatement<E>
-where
-    E: Expression,
-{
+impl Node for LetStatement {
     fn token_literal(&self) -> String {
         "let".to_string()
     }
@@ -37,10 +49,6 @@ where
     }
 }
 
-impl<E> Statement for LetStatement<E>
-where
-    E: Expression,
-{
+impl Statement for LetStatement {
     fn statement_node(&self) {}
 }
-

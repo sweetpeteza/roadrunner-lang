@@ -319,9 +319,12 @@ fn test_next_token_statements_and_operators() {
             }
             _ => {
                 assert_eq!(
-                    token, expected_token.clone(),
+                    token,
+                    expected_token.clone(),
                     "Test failed at index {}: expected {:?}, got {:?}",
-                    num, expected_token, token
+                    num,
+                    expected_token,
+                    token
                 );
             }
         }

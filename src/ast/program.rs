@@ -1,14 +1,11 @@
-use crate::ast::traits::Expression;
+use super::statement_types::StatementType;
+use super::traits::Node;
 
-use super::statement_types::{StatementType};
-use super::traits::{Node};
-
-#[derive(Debug)]
-pub struct Program<E> where E: Expression {
-    pub statements: Vec<StatementType<E>>
+pub struct Program {
+    pub statements: Vec<StatementType>,
 }
 
-impl<E> Program<E> where E: Expression {
+impl Program {
     pub fn new() -> Self {
         Program {
             statements: Vec::new(),
@@ -16,7 +13,7 @@ impl<E> Program<E> where E: Expression {
     }
 }
 
-impl<E> Node for Program<E> where E : Expression {
+impl Node for Program {
     fn token_literal(&self) -> String {
         if let Some(first_statement) = self.statements.first() {
             match first_statement {
