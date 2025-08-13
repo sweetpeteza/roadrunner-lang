@@ -7,3 +7,4 @@ pub mod let_statement;
 pub mod return_statement;
 
 pub mod identifier;
+pub mod integer_literal;

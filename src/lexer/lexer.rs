@@ -93,13 +93,13 @@ impl<'a> Lexer<'a> {
         self.input[start_position..self.position].to_string()
     }
 
-    fn read_number(&mut self) -> i32 {
+    fn read_number(&mut self) -> i64 {
         let start_position = self.position;
         while self.ch.is_digit(10) {
             self.read_char();
         }
         self.input[start_position..self.position]
-            .parse::<i32>()
+            .parse::<i64>()
             .unwrap_or(0)
     }
 

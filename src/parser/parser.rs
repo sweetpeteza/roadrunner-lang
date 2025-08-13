@@ -4,9 +4,7 @@ use rstest::rstest;
 
 use crate::{
     ast::{
-        expression_statement::ExpressionStatement, identifier::Identifier,
-        let_statement::LetStatement, program::Program, return_statement::ReturnStatement,
-        statement_types::StatementType, traits::Expression,
+        expression_statement::ExpressionStatement, identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement, program::Program, return_statement::ReturnStatement, statement_types::StatementType, traits::Expression
     },
     lexer::lexer::Lexer,
     parser::function_types::{InfixParseFn, PrefixParseFn},
@@ -67,6 +65,14 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_integer_literal(&self) -> Option<Box<dyn Expression>> {
+        if let Token::Int(ref value) = self.current_token {
+            Some(Box::new(IntegerLiteral::new(self.current_token.clone(), value.clone())))
+        } else {
+            None
+        }
+    }
+
     fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
         match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
@@ -91,6 +97,7 @@ impl<'a> Parser<'a> {
 
     fn parse_expression(&mut self) -> Option<Box<dyn Expression>> {
         match &self.current_token {
+            Token::Int(_) => self.parse_integer_literal(),
             Token::Ident(_) => self.parse_identifier(),
             _ => None,
         }
@@ -298,6 +305,32 @@ fn test_identifier_expression() {
             } else {
                 panic!("Expected an expression in the let statement");
             }
+        }
+    }
+}
+
+#[rstest]
+fn test_integer_literal_expression() {
+    let input = "5;";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(program.statements.len(), 1);
+
+    if let Some(int_literal) = program.statements.first() {
+        if let StatementType::Int(int) = int_literal {
+            assert_eq!(int.value, 5);
+        } else {
+            panic!("Expected an integer literal statement, found {:?}", int_literal);
         }
     }
 }

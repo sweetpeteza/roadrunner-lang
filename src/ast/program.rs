@@ -22,6 +22,7 @@ impl Node for Program {
                 StatementType::Let(let_stmt) => let_stmt.token_literal(),
                 StatementType::Return(return_stmt) => return_stmt.token_literal(),
                 StatementType::Expr(expr_stmt) => expr_stmt.token_literal(),
+                StatementType::Int(int_stmt) => int_stmt.token_literal(),
             }
         } else {
             "".to_string()
@@ -37,6 +38,7 @@ impl Node for Program {
                 StatementType::Expr(expr_stmt) => {
                     out.push_str(&expr_stmt.string());
                 }
+                StatementType::Int(int_stmt) => out.push_str(&int_stmt.string()),
             }
         }
         out
