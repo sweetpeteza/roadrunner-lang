@@ -66,6 +66,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_let_statement(&mut self) -> Result<StatementType, ParseError> {
+        let let_token = self.current_token.clone();
+
         let name = if let Token::Ident(name) = self.peek_token.clone() {
             name
         } else {
@@ -92,6 +94,7 @@ impl<'a> Parser<'a> {
         // In a complete implementation, you would handle expressions here
 
         Ok(StatementType::Let(LetStatement::new(
+            let_token,
             Identifier::new(name),
             None,
         )))
@@ -150,15 +153,24 @@ fn test_let_statements() {
     assert_eq!(program.statements.len(), 3);
     assert_eq!(
         program.statements[0],
-        StatementType::Let(LetStatement::new(Identifier::new("x".to_string()), None))
+        StatementType::Let(LetStatement::new(
+            Token::Let,
+            Identifier::new("x".to_string()),
+            None
+        ))
     );
     assert_eq!(
         program.statements[1],
-        StatementType::Let(LetStatement::new(Identifier::new("y".to_string()), None))
+        StatementType::Let(LetStatement::new(
+            Token::Let,
+            Identifier::new("y".to_string()),
+            None
+        ))
     );
     assert_eq!(
         program.statements[2],
         StatementType::Let(LetStatement::new(
+            Token::Let,
             Identifier::new("foobar".to_string()),
             None
         ))

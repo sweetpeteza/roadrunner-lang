@@ -1,9 +1,13 @@
-use crate::ast::{
-    identifier::Identifier,
-    traits::{Expression, Node, Statement},
+use crate::{
+    ast::{
+        identifier::Identifier,
+        traits::{Expression, Node, Statement},
+    },
+    token::token::Token,
 };
 
 pub struct LetStatement {
+    pub token: Token,
     pub name: Identifier,
     pub value: Option<Box<dyn Expression>>,
 }
@@ -25,8 +29,8 @@ impl std::fmt::Debug for LetStatement {
 }
 
 impl LetStatement {
-    pub fn new(name: Identifier, value: Option<Box<dyn Expression>>) -> Self {
-        LetStatement { name, value }
+    pub fn new(token: Token, name: Identifier, value: Option<Box<dyn Expression>>) -> Self {
+        LetStatement { token, name, value }
     }
 }
 
