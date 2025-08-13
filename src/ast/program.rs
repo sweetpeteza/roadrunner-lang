@@ -21,7 +21,7 @@ impl Node for Program {
             match first_statement {
                 StatementType::Let(let_stmt) => let_stmt.token_literal(),
                 StatementType::Return(return_stmt) => return_stmt.token_literal(),
-                // Add more cases for different statement types
+                StatementType::Expr(expr_stmt) => expr_stmt.token_literal(),
             }
         } else {
             "".to_string()
@@ -34,7 +34,9 @@ impl Node for Program {
             match statement {
                 StatementType::Let(let_stmt) => out.push_str(&let_stmt.string()),
                 StatementType::Return(return_stmt) => out.push_str(&return_stmt.string()),
-                // Add more cases for different statement types
+                StatementType::Expr(expr_stmt) => {
+                    out.push_str(&expr_stmt.string());
+                }
             }
         }
         out

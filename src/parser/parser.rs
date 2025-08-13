@@ -1,13 +1,15 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use rstest::rstest;
 
 use crate::{
     ast::{
-        identifier::Identifier, let_statement::LetStatement, program::Program,
-        return_statement::ReturnStatement, statement_types::StatementType,
+        expression_statement::ExpressionStatement, identifier::Identifier,
+        let_statement::LetStatement, program::Program, return_statement::ReturnStatement,
+        statement_types::StatementType, traits::Expression,
     },
     lexer::lexer::Lexer,
+    parser::function_types::{InfixParseFn, PrefixParseFn},
     token::token::Token,
 };
 
@@ -57,10 +59,39 @@ impl<'a> Parser<'a> {
         program
     }
 
+    fn parse_identifier(&self) -> Option<Box<dyn Expression>> {
+        if let Token::Ident(ref ident) = self.current_token {
+            Some(Box::new(Identifier::new(ident.clone())))
+        } else {
+            None
+        }
+    }
+
     fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
         match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
             Token::Return => Some(self.parse_return_statement()),
+            _ => Some(self.parse_expression_statement()),
+        }
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<StatementType, ParseError> {
+        let token = self.current_token.clone();
+
+        let expression = self.parse_expression();
+
+        let statement = StatementType::Expr(Box::new(ExpressionStatement::new(token, expression)));
+
+        if self.peek_token == Token::Semicolon {
+            self.next_token(); // Consume the semicolon
+        }
+
+        Ok(statement)
+    }
+
+    fn parse_expression(&mut self) -> Option<Box<dyn Expression>> {
+        match &self.current_token {
+            Token::Ident(_) => self.parse_identifier(),
             _ => None,
         }
     }
@@ -188,13 +219,12 @@ fn test_broken_let_statements() {
 
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
-    let program = parser.parse_program();
+    let _program = parser.parse_program();
 
     parser.errors.clone().into_iter().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
     assert_eq!(parser.errors.len(), 3);
-    assert_eq!(program.statements.len(), 0);
 
     let mut errors = parser.errors.into_iter();
 
@@ -242,4 +272,32 @@ fn test_return_statements() {
         program.statements[0],
         StatementType::Return(ReturnStatement::new(Token::Return, None))
     );
+}
+
+#[rstest]
+fn test_identifier_expression() {
+    let input = "foobar;";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(program.statements.len(), 1);
+
+    if let Some(let_statement) = program.statements.first() {
+        if let StatementType::Let(let_stmt) = let_statement {
+            if let Some(expression) = &let_stmt.value {
+                assert_eq!(expression.string(), "foobar");
+            } else {
+                panic!("Expected an expression in the let statement");
+            }
+        }
+    }
 }

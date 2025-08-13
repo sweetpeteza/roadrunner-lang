@@ -1,4 +1,4 @@
-use crate::{ast::traits::{Expression, Node}, token::token::Token};
+use crate::{ast::traits::{ExprStatement, Expression, Node, Statement}, token::token::Token};
 
 pub struct ExpressionStatement {
     pub token: Token, // first token of the expression
@@ -22,5 +22,22 @@ impl Node for ExpressionStatement {
         } else {
             "".to_string()
         }
+    }
+}
+
+impl Expression for ExpressionStatement {
+    fn expression_node(&self) {
+    }
+}
+
+impl Statement for ExpressionStatement {
+    fn statement_node(&self) {
+    }
+}
+
+impl ExprStatement for ExpressionStatement {
+    fn expression(&self) -> Option<&dyn Expression> {
+        // self.expression.unwrap_or_else(|e| Some(Box::new(e)), None))
+        self.expression.as_ref().map(|e| e.as_ref())
     }
 }

@@ -11,6 +11,20 @@ pub trait Expression: Node {
     fn expression_node(&self);
 }
 
-pub trait ExpressionStatement: Statement {
-    fn expression(&self) -> &dyn Expression;
+impl PartialEq for Box<dyn Expression + 'static> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref().string() == other.as_ref().string()
+    }
+}
+
+impl std::fmt::Debug for Box<dyn Expression + 'static> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Expression")
+            .field("string", &self.string())
+            .finish()
+    }
+}
+
+pub trait ExprStatement: Statement {
+    fn expression(&self) -> Option<&dyn Expression>;
 }
