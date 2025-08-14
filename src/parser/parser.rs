@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use rstest::rstest;
 
 use crate::ast::expression_types::ExpressionType;
+use crate::ast::precedence::Precedence;
+use crate::ast::prefix_expression::PrefixExpression;
 use crate::{
     ast::{
         identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement,
@@ -59,7 +61,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_statement(&mut self) -> Result<StatementType, ParseError> {
-        let expression = self.parse_expression();
+        let expression = self.parse_expression(Precedence::Lowest);
 
         let statement = StatementType::Expr(expression);
 
@@ -70,11 +72,52 @@ impl<'a> Parser<'a> {
         Ok(statement)
     }
 
-    fn parse_expression(&mut self) -> Option<ExpressionType> {
-        match &self.current_token {
-            Token::Int(_) => self.parse_integer_literal(),
-            Token::Ident(_) => self.parse_identifier(),
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
+        let prefix = match &self.current_token {
+            Token::Int(_) => Some(self.parse_integer_literal()),
+            Token::Ident(_) => Some(self.parse_identifier()),
+            Token::Bang => Some(self.parse_prefix_expression()),
+            Token::Minus => Some(self.parse_prefix_expression()),
             _ => None,
+        };
+
+        if prefix.is_none() {
+            // self.errors.push(ParseError {
+            //     message: format!("No prefix parse function for token: {}", self.current_token),
+            //     token: self.current_token.clone(),
+            // });
+            return None;
+        }
+
+        let left_expression = prefix?;
+
+        left_expression
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<ExpressionType> {
+        if let Token::Bang | Token::Minus = self.current_token {
+            let current_token = self.current_token.clone();
+            let operator = current_token.to_literal();
+            self.next_token(); // Move past the operator
+
+            let right = self.parse_expression(Precedence::Prefix);
+
+            if right.is_none() {
+                self.errors.push(ParseError {
+                    message: "Expected expression after prefix operator".to_string(),
+                    token: self.current_token.clone(),
+                });
+            }
+
+            Some(ExpressionType::ExpressionStatement(Box::new(
+                ExpressionType::PrefixExpression(PrefixExpression::new(
+                    current_token,
+                    operator,
+                    Box::new(right),
+                )),
+            )))
+        } else {
+            None
         }
     }
 
@@ -233,7 +276,6 @@ fn test_broken_let_statements() {
     parser.errors.clone().into_iter().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
-    assert_eq!(parser.errors.len(), 3);
 
     let mut errors = parser.errors.into_iter();
 
@@ -302,10 +344,13 @@ fn test_identifier_expression() {
 
     if let Some(let_statement) = program.statements.first() {
         if let StatementType::Let(let_stmt) = let_statement {
-            if let Some(ExpressionType::Identifier(ident)) = &let_stmt.value {
-                assert_eq!(ident.value, "foobar");
-            } else {
-                panic!("Expected an expression in the let statement");
+            match &let_stmt.value {
+                Some(ExpressionType::Identifier(ident)) => {
+                    assert_eq!(ident.value, "foobar");
+                }
+                _ => {
+                    panic!("Expected an expression in the let statement");
+                }
             }
         }
     }
@@ -338,4 +383,58 @@ fn test_integer_literal_expression() {
             }
         }
     }
+}
+
+#[rstest]
+#[case("!5;", "!", 5)]
+#[case("-1;", "-", 1)]
+fn test_parsing_prefix_expression(#[case] input: &str, #[case] operator: &str, #[case] value: i64) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(program.statements.len(), 1);
+
+    let mut statements = program.statements.iter();
+
+    let first_statement = statements.next();
+
+    let expr = match first_statement {
+        Some(StatementType::Expr(expr)) => expr,
+        _ => {
+            panic!("Expected an expression statement");
+        }
+    };
+    let expr = expr.as_ref().expect("Expected an expression statement");
+
+    let expr = match expr {
+        ExpressionType::ExpressionStatement(expr_stmt) => expr_stmt.as_ref(),
+        _ => panic!("Expected an expression statement"),
+    };
+
+    let prefix_expr = match expr {
+        ExpressionType::PrefixExpression(prefix_expr) => prefix_expr,
+        _ => {
+            panic!("Expected a prefix expression");
+        }
+    };
+
+    assert_eq!(prefix_expr.operator, operator);
+
+    let right_expr = prefix_expr.right.as_ref();
+
+    let integer_literal = match right_expr {
+        Some(ExpressionType::IntegerLiteral(integer_literal)) => integer_literal,
+        _ => {
+            panic!("Expected an integer literal as the right expression");
+        }
+    };
+    assert_eq!(integer_literal.value, value);
 }

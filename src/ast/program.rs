@@ -30,6 +30,7 @@ impl Node for Program {
                         ExpressionType::IntegerLiteral(integer_literal) => {
                             integer_literal.token_literal()
                         }
+                        ExpressionType::PrefixExpression(prefix_expr) => prefix_expr.token_literal(),
                         // Add other expression types as needed
                         _ => "Expression not implemented".to_string(),
                     },
@@ -54,6 +55,7 @@ impl Node for Program {
                             ExpressionType::IntegerLiteral(integer_literal) => {
                                 integer_literal.string()
                             }
+                            ExpressionType::PrefixExpression(prefix_expr) => prefix_expr.string(),
                             // Add other expression types as needed
                             _ => "Expression not implemented".to_string(),
                         },

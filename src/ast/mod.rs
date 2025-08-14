@@ -9,3 +9,5 @@ pub mod return_statement;
 pub mod expression_types;
 pub mod identifier;
 pub mod integer_literal;
+pub mod prefix_expression;
+pub mod precedence;
