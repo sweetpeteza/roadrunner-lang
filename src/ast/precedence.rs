@@ -1,3 +1,4 @@
+#[derive(PartialEq, PartialOrd, Debug)]
 pub enum Precedence {
     Lowest = 0,
     Equals,      // ==

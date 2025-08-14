@@ -1,11 +1,14 @@
-use crate::ast::{identifier::Identifier, integer_literal::IntegerLiteral, prefix_expression::PrefixExpression, traits::Node};
+use crate::ast::{
+    identifier::Identifier, infix_expression::InfixExpression, integer_literal::IntegerLiteral, prefix_expression::PrefixExpression, traits::Node
+};
 
 #[derive(Debug, PartialEq)]
 pub enum ExpressionType {
     IntegerLiteral(IntegerLiteral),
     Identifier(Identifier),
-    ExpressionStatement(Box<ExpressionType>),
-    PrefixExpression(PrefixExpression),
+    Statement(Box<ExpressionType>),
+    Prefix(PrefixExpression),
+    Infix(InfixExpression)
 }
 
 impl ExpressionType {
@@ -13,8 +16,9 @@ impl ExpressionType {
         match self {
             ExpressionType::IntegerLiteral(integer_literal) => integer_literal.string(),
             ExpressionType::Identifier(identifier) => identifier.string(),
-            ExpressionType::ExpressionStatement(expression_statement) => expression_statement.string(),
-            ExpressionType::PrefixExpression(prefix_expression) => prefix_expression.string(),
+            ExpressionType::Statement(expression_statement) => expression_statement.string(),
+            ExpressionType::Prefix(prefix_expression) => prefix_expression.string(),
+            ExpressionType::Infix(infix_expression) => infix_expression.string(),
         }
     }
 }
