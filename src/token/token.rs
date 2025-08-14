@@ -34,10 +34,10 @@ pub enum Token {
 impl Token {
     pub fn to_literal(&self) -> String {
         match self {
-            Token::Illegal => "illegal".to_string(),
+            Token::Illegal => "ILLEGAL".to_string(),
             Token::Eof => "EOF".to_string(),
-            Token::Ident(ident) => ident.clone(),
-            Token::Int(value) => value.to_string(),
+            Token::Ident(_) => "IDENT".to_string(),
+            Token::Int(_) => "INT".to_string(),
             Token::Assign => "=".to_string(),
             Token::Plus => "+".to_string(),
             Token::Minus => "-".to_string(),

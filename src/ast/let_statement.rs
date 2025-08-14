@@ -1,35 +1,17 @@
 use crate::{
-    ast::{
-        identifier::Identifier,
-        traits::{Expression, Node, Statement},
-    },
+    ast::{expression_types::ExpressionType, identifier::Identifier, traits::Node},
     token::token::Token,
 };
 
+#[derive(Debug, PartialEq)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
-    pub value: Option<Box<dyn Expression>>,
-}
-
-impl PartialEq for LetStatement {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-            && self.value.as_ref().map(|v| v.string()) == other.value.as_ref().map(|v| v.string())
-    }
-}
-
-impl std::fmt::Debug for LetStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LetStatement")
-            .field("name", &self.name)
-            .field("value", &self.value.as_ref().map(|v| v.string()))
-            .finish()
-    }
+    pub value: Option<ExpressionType>,
 }
 
 impl LetStatement {
-    pub fn new(token: Token, name: Identifier, value: Option<Box<dyn Expression>>) -> Self {
+    pub fn new(token: Token, name: Identifier, value: Option<ExpressionType>) -> Self {
         LetStatement { token, name, value }
     }
 }
@@ -45,14 +27,18 @@ impl Node for LetStatement {
         out.push(' ');
         out.push_str(&self.name.token_literal());
         out.push_str(" = ");
-        out.push_str(&self.value.as_ref().map_or("nil".to_string(), |v| v.string()));
+        out.push_str(&match &self.value {
+            Some(expression) => match expression {
+                ExpressionType::Identifier(identifier) => identifier.string(),
+                ExpressionType::IntegerLiteral(integer_literal) => integer_literal.string(),
+                // Add other expression types as needed
+                _ => "Expression not implemented".to_string(),
+            },
+            None => "nil".to_string(),
+        });
 
         out.push(';');
 
         out
     }
-}
-
-impl Statement for LetStatement {
-    fn statement_node(&self) {}
 }

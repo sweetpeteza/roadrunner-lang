@@ -1,5 +1,7 @@
 use rstest::rstest;
 
+use crate::ast::expression_types::ExpressionType;
+
 use super::statement_types::StatementType;
 use super::traits::Node;
 
@@ -21,8 +23,18 @@ impl Node for Program {
             match first_statement {
                 StatementType::Let(let_stmt) => let_stmt.token_literal(),
                 StatementType::Return(return_stmt) => return_stmt.token_literal(),
-                StatementType::Expr(expr_stmt) => expr_stmt.token_literal(),
-                StatementType::Int(int_stmt) => int_stmt.token_literal(),
+                StatementType::Expr(expr_stmt) => match expr_stmt {
+                    Some(expression) => match expression {
+                        // Assuming ExpressionType has a token_literal method
+                        ExpressionType::Identifier(identifier) => identifier.token_literal(),
+                        ExpressionType::IntegerLiteral(integer_literal) => {
+                            integer_literal.token_literal()
+                        }
+                        // Add other expression types as needed
+                        _ => "Expression not implemented".to_string(),
+                    },
+                    _ => "".to_string(),
+                },
             }
         } else {
             "".to_string()
@@ -36,9 +48,18 @@ impl Node for Program {
                 StatementType::Let(let_stmt) => out.push_str(&let_stmt.string()),
                 StatementType::Return(return_stmt) => out.push_str(&return_stmt.string()),
                 StatementType::Expr(expr_stmt) => {
-                    out.push_str(&expr_stmt.string());
+                    out.push_str(&match expr_stmt {
+                        Some(expression) => match expression {
+                            ExpressionType::Identifier(identifier) => identifier.string(),
+                            ExpressionType::IntegerLiteral(integer_literal) => {
+                                integer_literal.string()
+                            }
+                            // Add other expression types as needed
+                            _ => "Expression not implemented".to_string(),
+                        },
+                        None => "".to_string(),
+                    });
                 }
-                StatementType::Int(int_stmt) => out.push_str(&int_stmt.string()),
             }
         }
         out
@@ -59,7 +80,7 @@ fn test_program_string() {
             name: Identifier {
                 value: "myVar".to_string(),
             },
-            value: Some(Box::new(Identifier {
+            value: Some(ExpressionType::Identifier(Identifier {
                 value: "anotherVar".to_string(),
             })),
         })],

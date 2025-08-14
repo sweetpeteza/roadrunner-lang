@@ -1,12 +1,15 @@
-use crate::{ast::traits::{ExprStatement, Expression, Node, Statement}, token::token::Token};
+use crate::{
+    ast::{expression_types::ExpressionType, traits::Node},
+    token::token::Token,
+};
 
 pub struct ExpressionStatement {
     pub token: Token, // first token of the expression
-    pub expression: Option<Box<dyn Expression>>,
+    pub expression: Option<ExpressionType>,
 }
 
 impl ExpressionStatement {
-    pub fn new(token: Token, expression: Option<Box<dyn Expression>>) -> Self {
+    pub fn new(token: Token, expression: Option<ExpressionType>) -> Self {
         ExpressionStatement { token, expression }
     }
 }
@@ -17,27 +20,25 @@ impl Node for ExpressionStatement {
     }
 
     fn string(&self) -> String {
-        if let Some(ref expr) = self.expression {
-            expr.string()
+        if let Some(expr) = &self.expression {
+            match expr {
+                ExpressionType::Identifier(identifier) => identifier.string(),
+                ExpressionType::IntegerLiteral(integer_literal) => integer_literal.string(),
+                _ => {
+                    // Handle other expression types as needed
+                    // For now, we will just return a placeholder string
+                    "Expression not implemented".to_string()
+                } // ExpressionType::BooleanLiteral(boolean_literal) => boolean_literal.string(),
+                  // ExpressionType::PrefixExpression(prefix_expr) => prefix_expr.string(),
+                  // ExpressionType::InfixExpression(infix_expr) => infix_expr.string(),
+                  // ExpressionType::IfExpression(if_expr) => if_expr.string(),
+                  // ExpressionType::FunctionLiteral(func_literal) => func_literal.string(),
+                  // ExpressionType::CallExpression(call_expr) => call_expr.string(),
+                  // ExpressionType::ArrayLiteral(array_literal) => array_literal.string(),
+                  // ExpressionType::IndexExpression(index_expr) => index_expr.string(),
+            }
         } else {
             "".to_string()
         }
-    }
-}
-
-impl Expression for ExpressionStatement {
-    fn expression_node(&self) {
-    }
-}
-
-impl Statement for ExpressionStatement {
-    fn statement_node(&self) {
-    }
-}
-
-impl ExprStatement for ExpressionStatement {
-    fn expression(&self) -> Option<&dyn Expression> {
-        // self.expression.unwrap_or_else(|e| Some(Box::new(e)), None))
-        self.expression.as_ref().map(|e| e.as_ref())
     }
 }

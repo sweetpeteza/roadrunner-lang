@@ -1,13 +1,14 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use rstest::rstest;
 
+use crate::ast::expression_types::ExpressionType;
 use crate::{
     ast::{
-        expression_statement::ExpressionStatement, identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement, program::Program, return_statement::ReturnStatement, statement_types::StatementType, traits::Expression
+        identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement,
+        program::Program, return_statement::ReturnStatement, statement_types::StatementType,
     },
     lexer::lexer::Lexer,
-    parser::function_types::{InfixParseFn, PrefixParseFn},
     token::token::Token,
 };
 
@@ -57,17 +58,40 @@ impl<'a> Parser<'a> {
         program
     }
 
-    fn parse_identifier(&self) -> Option<Box<dyn Expression>> {
+    fn parse_expression_statement(&mut self) -> Result<StatementType, ParseError> {
+        let expression = self.parse_expression();
+
+        let statement = StatementType::Expr(expression);
+
+        if self.peek_token == Token::Semicolon {
+            self.next_token(); // Consume the semicolon
+        }
+
+        Ok(statement)
+    }
+
+    fn parse_expression(&mut self) -> Option<ExpressionType> {
+        match &self.current_token {
+            Token::Int(_) => self.parse_integer_literal(),
+            Token::Ident(_) => self.parse_identifier(),
+            _ => None,
+        }
+    }
+
+    fn parse_identifier(&self) -> Option<ExpressionType> {
         if let Token::Ident(ref ident) = self.current_token {
-            Some(Box::new(Identifier::new(ident.clone())))
+            Some(ExpressionType::Identifier(Identifier::new(ident.clone())))
         } else {
             None
         }
     }
 
-    fn parse_integer_literal(&self) -> Option<Box<dyn Expression>> {
+    fn parse_integer_literal(&self) -> Option<ExpressionType> {
         if let Token::Int(ref value) = self.current_token {
-            Some(Box::new(IntegerLiteral::new(self.current_token.clone(), value.clone())))
+            Some(ExpressionType::IntegerLiteral(IntegerLiteral::new(
+                self.current_token.clone(),
+                value.clone(),
+            )))
         } else {
             None
         }
@@ -78,28 +102,6 @@ impl<'a> Parser<'a> {
             Token::Let => Some(self.parse_let_statement()),
             Token::Return => Some(self.parse_return_statement()),
             _ => Some(self.parse_expression_statement()),
-        }
-    }
-
-    fn parse_expression_statement(&mut self) -> Result<StatementType, ParseError> {
-        let token = self.current_token.clone();
-
-        let expression = self.parse_expression();
-
-        let statement = StatementType::Expr(Box::new(ExpressionStatement::new(token, expression)));
-
-        if self.peek_token == Token::Semicolon {
-            self.next_token(); // Consume the semicolon
-        }
-
-        Ok(statement)
-    }
-
-    fn parse_expression(&mut self) -> Option<Box<dyn Expression>> {
-        match &self.current_token {
-            Token::Int(_) => self.parse_integer_literal(),
-            Token::Ident(_) => self.parse_identifier(),
-            _ => None,
         }
     }
 
@@ -300,8 +302,8 @@ fn test_identifier_expression() {
 
     if let Some(let_statement) = program.statements.first() {
         if let StatementType::Let(let_stmt) = let_statement {
-            if let Some(expression) = &let_stmt.value {
-                assert_eq!(expression.string(), "foobar");
+            if let Some(ExpressionType::Identifier(ident)) = &let_stmt.value {
+                assert_eq!(ident.value, "foobar");
             } else {
                 panic!("Expected an expression in the let statement");
             }
@@ -326,11 +328,14 @@ fn test_integer_literal_expression() {
     assert_eq!(errors.len(), 0);
     assert_eq!(program.statements.len(), 1);
 
-    if let Some(int_literal) = program.statements.first() {
-        if let StatementType::Int(int) = int_literal {
-            assert_eq!(int.value, 5);
-        } else {
-            panic!("Expected an integer literal statement, found {:?}", int_literal);
+    if let Some(integer_literal) = program.statements.first() {
+        if let StatementType::Expr(int_literal) = integer_literal {
+            match int_literal {
+                Some(ExpressionType::IntegerLiteral(literal)) => {
+                    assert_eq!(literal.value, 5);
+                }
+                _ => panic!("Expected an integer literal expression"),
+            }
         }
     }
 }

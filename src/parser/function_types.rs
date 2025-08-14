@@ -1,4 +1,4 @@
-use crate::{ast::traits::Expression, parser::parser::Parser};
+use crate::{ast::expression_types::ExpressionType, parser::parser::Parser};
 
-pub type PrefixParseFn = fn(&Parser) -> Option<Box<dyn Expression>>;
-pub type InfixParseFn = fn(&Parser, Box<dyn Expression>) -> Option<Box<dyn Expression>>;
+pub type PrefixParseFn = fn(&Parser) -> Option<ExpressionType>;
+pub type InfixParseFn = fn(&Parser, ExpressionType) -> Option<ExpressionType>;

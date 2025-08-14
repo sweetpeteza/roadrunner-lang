@@ -1,4 +1,4 @@
-use crate::ast::traits::{Expression, Node};
+use crate::ast::traits::Node;
 
 #[derive(Debug, PartialEq)]
 pub struct Identifier {
@@ -19,8 +19,4 @@ impl Node for Identifier {
     fn string(&self) -> String {
         self.value.clone()
     }
-}
-
-impl Expression for Identifier {
-    fn expression_node(&self) {}
 }

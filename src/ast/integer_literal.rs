@@ -1,9 +1,9 @@
-use crate::{ast::traits::{Expression, Node}, token::token::Token};
+use crate::{ast::traits::Node, token::token::Token};
 
 #[derive(Debug, PartialEq)]
 pub struct IntegerLiteral {
     pub token: Token,
-    pub value: i64
+    pub value: i64,
 }
 
 impl IntegerLiteral {
@@ -21,8 +21,3 @@ impl Node for IntegerLiteral {
         self.value.to_string().clone()
     }
 }
-
-impl Expression for IntegerLiteral {
-    fn expression_node(&self) {}
-}
-
