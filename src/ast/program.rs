@@ -32,7 +32,7 @@ impl Node for Program {
                         }
                         ExpressionType::Prefix(prefix_expr) => prefix_expr.token_literal(),
                         // Add other expression types as needed
-                        _ => "Expression not implemented".to_string(),
+                        _ => "".to_string(),
                     },
                     _ => "".to_string(),
                 },
@@ -57,7 +57,7 @@ impl Node for Program {
                             }
                             ExpressionType::Prefix(prefix_expr) => prefix_expr.string(),
                             // Add other expression types as needed
-                            _ => "Expression not implemented".to_string(),
+                            _ => expression.string(),
                         },
                         None => "".to_string(),
                     });

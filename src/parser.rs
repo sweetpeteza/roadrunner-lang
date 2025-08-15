@@ -565,3 +565,29 @@ fn test_infix_expression(
     assert_eq!(infix_operator, operator);
     assert_eq!(infix_right_expr.value, right_value);
 }
+
+#[rstest]
+#[case("-a * b", "((-a) * b)")]
+#[case("!-a", "(!(-a))")]
+#[case("a + b + c", "((a + b) + c)")]
+#[case("a + b - c", "((a + b) - c)")]
+#[case("a * b * c", "((a * b) * c)")]
+#[case("a * b / c", "((a * b) / c)")]
+#[case("a + b / c", "(a + (b / c))")]
+#[case("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)")]
+fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output: &str) {
+    use crate::ast::traits::Node;
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(program.string(), expected_output);
+}
