@@ -4,6 +4,7 @@ use rstest::rstest;
 use tracing::{error, info};
 use tracing_test::traced_test;
 
+use crate::ast::boolean_literal::BooleanLiteral;
 use crate::ast::expression_types::ExpressionType;
 use crate::ast::infix_expression::InfixExpression;
 use crate::ast::precedence::Precedence;
@@ -84,6 +85,7 @@ impl<'a> Parser<'a> {
             Token::Ident(_) => self.parse_identifier(),
             Token::Int(_) => self.parse_integer_literal(),
             Token::Bang | Token::Minus => self.parse_prefix_expression(),
+            Token::True | Token::False => self.parse_boolean_literal(),
             _ => None,
         };
 
@@ -208,6 +210,23 @@ impl<'a> Parser<'a> {
         } else {
             info!("END parse_integer_literal");
             None
+        }
+    }
+
+    fn parse_boolean_literal(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_boolean_literal");
+        match self.current_token {
+            Token::True | Token::False => {
+                info!("END parse_boolean_literal");
+                Some(ExpressionType::BooleanLiteral(BooleanLiteral::new(
+                            self.current_token.clone(),
+                            self.current_token == Token::True,
+                        )))
+            }
+            _ => {
+                    info!("END parse_boolean_literal");
+                    None
+                }
         }
     }
 
@@ -458,6 +477,35 @@ fn test_integer_literal_expression() {
                     assert_eq!(literal.value, 5);
                 }
                 _ => panic!("Expected an integer literal expression"),
+            }
+        }
+    }
+}
+
+#[rstest]
+fn test_boolean_literal_expression() {
+    let input = "true;";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(program.statements.len(), 1);
+
+    if let Some(boolean_literal) = program.statements.first() {
+        if let StatementType::Expr(bool_literal) = boolean_literal {
+            match bool_literal {
+                Some(ExpressionType::BooleanLiteral(literal)) => {
+                    assert_eq!(literal.value, true);
+                }
+                _ => panic!("Expected an boolean literal expression, got: {:?}", bool_literal),
             }
         }
     }

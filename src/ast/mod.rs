@@ -12,3 +12,4 @@ pub mod integer_literal;
 pub mod prefix_expression;
 pub mod precedence;
 pub mod infix_expression;
+pub mod boolean_literal;

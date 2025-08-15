@@ -1,5 +1,5 @@
 use crate::ast::{
-    identifier::Identifier, infix_expression::InfixExpression, integer_literal::IntegerLiteral, prefix_expression::PrefixExpression, traits::Node
+    boolean_literal::BooleanLiteral, identifier::Identifier, infix_expression::InfixExpression, integer_literal::IntegerLiteral, prefix_expression::PrefixExpression, traits::Node
 };
 
 #[derive(Debug, PartialEq)]
@@ -8,7 +8,8 @@ pub enum ExpressionType {
     Identifier(Identifier),
     Statement(Box<ExpressionType>),
     Prefix(PrefixExpression),
-    Infix(InfixExpression)
+    Infix(InfixExpression),
+    BooleanLiteral(BooleanLiteral)
 }
 
 impl ExpressionType {
@@ -19,6 +20,7 @@ impl ExpressionType {
             ExpressionType::Statement(expression_statement) => expression_statement.string(),
             ExpressionType::Prefix(prefix_expression) => prefix_expression.string(),
             ExpressionType::Infix(infix_expression) => infix_expression.string(),
+            ExpressionType::BooleanLiteral(boolean_literal) => boolean_literal.string(),
         }
     }
 }
