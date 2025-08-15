@@ -13,3 +13,5 @@ pub mod prefix_expression;
 pub mod precedence;
 pub mod infix_expression;
 pub mod boolean_literal;
+pub mod if_expression;
+pub mod block_statement;

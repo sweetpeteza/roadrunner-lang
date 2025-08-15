@@ -87,9 +87,7 @@ impl<'a> Parser<'a> {
             Token::Bang | Token::Minus => self.parse_prefix_expression(),
             Token::True | Token::False => self.parse_boolean_literal(),
             Token::Lparen => self.parse_grouped_expression(),
-            _ => {
-                None
-            },
+            _ => None,
         };
 
         if prefix.is_none() {
@@ -189,13 +187,9 @@ impl<'a> Parser<'a> {
                 let operator = current_token.to_literal();
                 let expression = self.parse_grouped_expression();
 
-                Some(ExpressionType::Statement(Box::new(
-                    ExpressionType::Prefix(PrefixExpression::new(
-                        current_token,
-                        operator,
-                        Box::new(expression),
-                    )),
-                )))
+                Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
+                    PrefixExpression::new(current_token, operator, Box::new(expression)),
+                ))))
             }
             _ => {
                 info!("END parse_prefix_expression");
@@ -761,3 +755,37 @@ fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output
 
     assert_eq!(program.string(), expected_output);
 }
+
+#[rstest]
+fn test_if_expresssion() {
+    let input = "if (x < y) { x }";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let mut statements = program.statements.iter();
+    let first_statement = statements.next();
+
+    let if_expression = match first_statement {
+        Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
+            match expr.as_ref() {
+                // deref the Box here
+                ExpressionType::If(if_expr) => if_expr,
+                _ => panic!("Expected an if expression, got {:?}", expr),
+            }
+        }
+        _ => panic!("Expected an expression statement, got {:?}", first_statement),
+    };
+
+
+}
+

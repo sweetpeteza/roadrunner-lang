@@ -1,5 +1,5 @@
 use crate::ast::{
-    expression_types::ExpressionType, let_statement::LetStatement,
+    block_statement::BlockStatement, expression_types::ExpressionType, let_statement::LetStatement,
     return_statement::ReturnStatement,
 };
 
@@ -8,6 +8,7 @@ pub enum StatementType {
     Let(LetStatement),
     Return(ReturnStatement),
     Expr(Option<ExpressionType>),
+    Block(BlockStatement),
 }
 
 impl PartialEq for StatementType {
@@ -16,6 +17,7 @@ impl PartialEq for StatementType {
             (Self::Let(l), Self::Let(r)) => l == r,
             (Self::Return(l), Self::Return(r)) => l == r,
             (Self::Expr(l), Self::Expr(r)) => l == r,
+            (Self::Block(l), Self::Block(r)) => l == r,
             _ => false,
         }
     }

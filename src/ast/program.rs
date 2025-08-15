@@ -37,6 +37,7 @@ impl Node for Program {
                     },
                     _ => "".to_string(),
                 },
+                StatementType::Block(block_stmt) => block_stmt.token_literal(),
             }
         } else {
             "".to_string()
@@ -63,6 +64,7 @@ impl Node for Program {
                         None => "".to_string(),
                     });
                 }
+                StatementType::Block(block_stmt) => out.push_str(&block_stmt.string()),
             }
         }
         out
