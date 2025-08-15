@@ -206,9 +206,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_literal(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_function_literal");
         let token = self.current_token.clone();
 
-        if self.peek_token != Token::Lparen {
+        self.next_token();
+
+        if self.current_token != Token::Lparen {
+            info!("END parse_function_literal - did not find l paren");
             return None;
         }
 
@@ -216,7 +220,11 @@ impl<'a> Parser<'a> {
 
         let parameters = self.parse_fn_params();
 
+        debug!("current_token: {:?}", self.current_token);
+        debug!("peek_token: {:?}", self.peek_token);
+
         if self.peek_token != Token::Lbrace {
+            info!("END parse_function_literal - did not find l brace");
             return None;
         }
 
@@ -224,6 +232,7 @@ impl<'a> Parser<'a> {
 
         let body = self.parse_block_statement();
 
+        info!("END parse_function_literal");
         Some(ExpressionType::Function(FunctionLiteral {
             token,
             parameters,
@@ -232,9 +241,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn_params(&mut self) -> Vec<Identifier> {
+        info!("BEGIN parse_fn_params");
         let mut params = Vec::new();
+        debug!("current_token: {:?}", self.current_token);
+        debug!("peek_token: {:?}", self.peek_token);
 
         if self.peek_token == Token::Rparen {
+            info!("END parse_fn_params - peek_token != Token::Rparen");
             self.next_token();
             return params;
         }
@@ -252,8 +265,10 @@ impl<'a> Parser<'a> {
         }
 
         if self.peek_token != Token::Rparen {
+            info!("END parse_fn_params - peek_token == Token::Rparen");
             return vec![];
         }
+        info!("END parse_fn_params");
 
         params
     }
@@ -1071,6 +1086,7 @@ fn test_if_else_expresssion() {
     }
 }
 
+#[traced_test]
 #[rstest]
 fn test_parse_function_literal() {
     let input = "fn(x,y) { x + y; }";
