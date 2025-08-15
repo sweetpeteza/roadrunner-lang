@@ -9,6 +9,15 @@ pub struct BlockStatement {
     pub statements: Vec<StatementType>,
 }
 
+impl BlockStatement {
+    pub fn new(token: Token) -> Self {
+        Self {
+            token,
+            statements: Vec::new(),
+        }
+    }
+}
+
 impl Node for BlockStatement {
     fn token_literal(&self) -> String {
         self.token.to_literal()
@@ -28,9 +37,7 @@ impl Node for BlockStatement {
                     Some(e) => out.push_str(&e.string()),
                     None => {}
                 },
-                StatementType::Block(block) => {
-                    out.push_str(&block.string())
-                }
+                StatementType::Block(block) => out.push_str(&block.string()),
             };
         }
 

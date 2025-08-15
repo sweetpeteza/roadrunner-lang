@@ -1,11 +1,13 @@
 use std::fmt::Debug;
 
 use rstest::rstest;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_test::traced_test;
 
+use crate::ast::block_statement::BlockStatement;
 use crate::ast::boolean_literal::BooleanLiteral;
 use crate::ast::expression_types::ExpressionType;
+use crate::ast::if_expression::IfExpression;
 use crate::ast::infix_expression::InfixExpression;
 use crate::ast::precedence::Precedence;
 use crate::ast::prefix_expression::PrefixExpression;
@@ -81,12 +83,14 @@ impl<'a> Parser<'a> {
     fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
         info!("BEGIN parse_expression with precedence: {:?}", precedence);
 
+        // this is where the book has a hashmap of prefix functions
         let prefix = match self.current_token.clone() {
             Token::Ident(_) => self.parse_identifier(),
             Token::Int(_) => self.parse_integer_literal(),
             Token::Bang | Token::Minus => self.parse_prefix_expression(),
             Token::True | Token::False => self.parse_boolean_literal(),
             Token::Lparen => self.parse_grouped_expression(),
+            Token::If => self.parse_if_expression(),
             _ => None,
         };
 
@@ -99,6 +103,7 @@ impl<'a> Parser<'a> {
         while &self.peek_token.clone() != &Token::Semicolon
             && precedence < self.get_precedence(&self.peek_token.clone())
         {
+            // this is where the book has a hashmap of infix functions
             left_expression = match self.peek_token.clone() {
                 Token::Plus
                 | Token::Minus
@@ -150,6 +155,76 @@ impl<'a> Parser<'a> {
                 Box::new(right),
             ),
         ))))
+    }
+
+    fn parse_if_expression(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_if_expression");
+        // first token is if
+        let if_token = self.current_token.clone();
+
+        if self.peek_token != Token::Lparen {
+            return None;
+        }
+
+        self.next_token(); // Consume the 'if' token
+
+        let expression = self.parse_expression(Precedence::Lowest);
+
+        // TODO combine this if check with next_token in expect_peek fn
+        if self.current_token != Token::Rparen {
+            return None;
+        }
+
+        self.next_token(); // Consume the closing parenthesis
+
+        if self.current_token != Token::Lbrace {
+            info!("END parse_if_expression - missing opening brace");
+            return None;
+        }
+
+        let consequence = self.parse_block_statement();
+
+        let alternative = if self.peek_token == Token::Else {
+            self.next_token(); // consume r brace
+
+            match self.peek_token {
+                Token::Lbrace => {
+                    self.next_token(); // consume else
+                    Some(self.parse_block_statement())
+                },
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        info!("END parse_if_expression");
+        Some(ExpressionType::Statement(Box::new(ExpressionType::If(
+            IfExpression::new(if_token, Box::new(expression), consequence, alternative),
+        ))))
+    }
+
+    fn parse_block_statement(&mut self) -> BlockStatement {
+        info!("BEGIN parse_block_statement");
+        let mut block = BlockStatement::new(self.current_token.clone());
+
+        self.next_token(); // Consume the opening brace
+
+        while self.current_token != Token::Rbrace && self.current_token != Token::Eof {
+            if let Some(statement) = self.parse_statement() {
+                match statement {
+                    Ok(stmt) => block.statements.push(stmt),
+                    Err(e) => {
+                        error!("Error parsing block statement: {:?}", e);
+                        self.errors.push(e);
+                    }
+                }
+            }
+            self.next_token(); // Move to the next token
+        }
+
+        info!("END parse_block_statement");
+        block
     }
 
     fn get_precedence(&self, token: &Token) -> Precedence {
@@ -756,6 +831,7 @@ fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output
     assert_eq!(program.string(), expected_output);
 }
 
+#[traced_test]
 #[rstest]
 fn test_if_expresssion() {
     let input = "if (x < y) { x }";
@@ -775,6 +851,8 @@ fn test_if_expresssion() {
     let mut statements = program.statements.iter();
     let first_statement = statements.next();
 
+    dbg!(&first_statement);
+
     let if_expression = match first_statement {
         Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
             match expr.as_ref() {
@@ -783,9 +861,158 @@ fn test_if_expresssion() {
                 _ => panic!("Expected an if expression, got {:?}", expr),
             }
         }
-        _ => panic!("Expected an expression statement, got {:?}", first_statement),
+        _ => panic!(
+            "Expected an expression statement, got {:?}",
+            first_statement
+        ),
     };
 
+    let infix_expr = match if_expression.condition.as_ref() {
+        Some(ExpressionType::Statement(expr)) => match expr.as_ref() {
+            ExpressionType::Infix(infix) => {
+                match infix.left.as_ref() {
+                    Some(ExpressionType::Identifier(ident)) => {
+                        assert_eq!(ident.value, "x");
+                    }
+                    _ => panic!("Expected an identifier as the left expression"),
+                }
+                match infix.right.as_ref() {
+                    Some(ExpressionType::Identifier(ident)) => {
+                        assert_eq!(ident.value, "y");
+                    }
+                    _ => panic!("Expected an identifier as the right expression"),
+                }
+                assert_eq!(infix.operator, "<");
+                infix
+            }
+            _ => panic!(
+                "Expected an infix expression as the condition, got {:?}",
+                expr
+            ),
+        },
 
+        _ => panic!(
+            "Expected an infix expression as the condition, got {:?}",
+            if_expression.condition
+        ),
+    };
+
+    let block_statement = &if_expression.consequence;
+
+    let statements = &block_statement.statements;
+    assert_eq!(statements.len(), 1);
+
+    let first_statement = statements
+        .first()
+        .expect("Expected a statement in the block");
+
+    match first_statement {
+        StatementType::Expr(Some(ExpressionType::Identifier(ident))) => {
+            assert_eq!(ident.value, "x");
+        }
+        _ => panic!("Expected an identifier expression in the block statement"),
+    }
 }
 
+#[traced_test]
+#[rstest]
+fn test_if_else_expresssion() {
+    let input = "if (x < y) { x } else { y }";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let mut statements = program.statements.iter();
+    let first_statement = statements.next();
+
+    dbg!(&first_statement);
+
+    let if_expression = match first_statement {
+        Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
+            match expr.as_ref() {
+                // deref the Box here
+                ExpressionType::If(if_expr) => if_expr,
+                _ => panic!("Expected an if expression, got {:?}", expr),
+            }
+        }
+        _ => panic!(
+            "Expected an expression statement, got {:?}",
+            first_statement
+        ),
+    };
+
+    let infix_expr = match if_expression.condition.as_ref() {
+        Some(ExpressionType::Statement(expr)) => match expr.as_ref() {
+            ExpressionType::Infix(infix) => {
+                match infix.left.as_ref() {
+                    Some(ExpressionType::Identifier(ident)) => {
+                        assert_eq!(ident.value, "x");
+                    }
+                    _ => panic!("Expected an identifier as the left expression"),
+                }
+                match infix.right.as_ref() {
+                    Some(ExpressionType::Identifier(ident)) => {
+                        assert_eq!(ident.value, "y");
+                    }
+                    _ => panic!("Expected an identifier as the right expression"),
+                }
+                assert_eq!(infix.operator, "<");
+                infix
+            }
+            _ => panic!(
+                "Expected an infix expression as the condition, got {:?}",
+                expr
+            ),
+        },
+
+        _ => panic!(
+            "Expected an infix expression as the condition, got {:?}",
+            if_expression.condition
+        ),
+    };
+
+    let block_statement = &if_expression.consequence;
+
+    let statements = &block_statement.statements;
+    assert_eq!(statements.len(), 1);
+
+    let first_statement = statements
+        .first()
+        .expect("Expected a statement in the block");
+
+    match first_statement {
+        StatementType::Expr(Some(ExpressionType::Identifier(ident))) => {
+            assert_eq!(ident.value, "x");
+        }
+        _ => panic!("Expected an identifier expression in the block statement"),
+    }
+
+    let alternative_block = if_expression
+        .alternative
+        .as_ref()
+        .expect("Expected an alternative block");
+
+    let alternative_statements = &alternative_block.statements;
+
+    assert_eq!(alternative_statements.len(), 1);
+
+    let alternative_first_statement = alternative_statements
+        .first()
+        .expect("Expected a statement in the alternative block");
+
+    match alternative_first_statement {
+        StatementType::Expr(Some(ExpressionType::Identifier(ident))) => {
+            assert_eq!(ident.value, "y");
+        }
+        _ => panic!("Expected an identifier expression in the alternative block statement"),
+    }
+}
