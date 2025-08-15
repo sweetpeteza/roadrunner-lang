@@ -500,8 +500,8 @@ fn test_parsing_prefix_expression(#[case] input: &str, #[case] operator: &str, #
 #[case("5 / 5;", 5, "/", 5)]
 #[case("5 > 5;", 5, ">", 5)]
 #[case("5 < 5;", 5, "<", 5)]
-// #[case("5 == 5;", 5, "==", 5)]
-// #[case("5 != 5;", 5, "!=", 5)]
+#[case("5 == 5;", 5, "==", 5)]
+#[case("5 != 5;", 5, "!=", 5)]
 fn test_infix_expression(
     #[case] input: &str,
     #[case] left_value: i64,

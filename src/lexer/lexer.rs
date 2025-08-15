@@ -1,6 +1,6 @@
 use rstest::rstest;
 
-use crate::token::token::{Token, lookup_ident};
+use crate::token::token::{lookup_ident, Token};
 pub struct Lexer<'a> {
     input: &'a str,
     position: usize,
@@ -46,18 +46,20 @@ impl<'a> Lexer<'a> {
             '=' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    return Eq;
+                    Eq
+                } else {
+                    Assign
                 }
-                Assign
             }
             '+' => Plus,
             '-' => Minus,
             '!' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    return NotEq;
+                    NotEq
+                } else {
+                    Bang
                 }
-                Bang
             }
             '*' => Asterisk,
             '<' => LessThan,
@@ -82,6 +84,7 @@ impl<'a> Lexer<'a> {
         };
 
         self.read_char();
+
         token
     }
 
@@ -119,6 +122,62 @@ fn test_next_token_simple() {
     let tests = vec![
         Assign, Plus, Lparen, Rparen, Lbrace, Rbrace, Comma, Semicolon, Eof,
     ];
+
+    for expected_token in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expected_token);
+    }
+}
+
+#[rstest]
+fn test_next_token_semicolon() {
+    use crate::token::token::Token::*;
+    let input = ";";
+    let mut lexer = Lexer::new(input);
+
+    let tests = vec![Semicolon, Eof];
+
+    for expected_token in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expected_token);
+    }
+}
+
+#[rstest]
+fn test_next_token_equals() {
+    use crate::token::token::Token::*;
+    let input = "==;";
+    let mut lexer = Lexer::new(input);
+
+    let tests = vec![Eq, Semicolon, Eof];
+
+    for expected_token in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expected_token);
+    }
+}
+
+#[rstest]
+fn test_next_token_not_equals() {
+    use crate::token::token::Token::*;
+    let input = "!=;";
+    let mut lexer = Lexer::new(input);
+
+    let tests = vec![NotEq, Semicolon, Eof];
+
+    for expected_token in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expected_token);
+    }
+}
+
+#[rstest]
+fn test_next_token_double_char_tokens() {
+    use crate::token::token::Token::*;
+    let input = "== !=;";
+    let mut lexer = Lexer::new(input);
+
+    let tests = vec![Eq, NotEq, Semicolon, Eof];
 
     for expected_token in tests {
         let token = lexer.next_token();
