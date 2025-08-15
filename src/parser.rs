@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
 use rstest::rstest;
+use tracing::{error, info};
+use tracing_test::traced_test;
 
 use crate::ast::expression_types::ExpressionType;
 use crate::ast::infix_expression::InfixExpression;
@@ -62,6 +64,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_statement(&mut self) -> Result<StatementType, ParseError> {
+        info!("BEGIN parse_expression_statement");
         let expression = self.parse_expression(Precedence::Lowest);
 
         let statement = StatementType::Expr(expression);
@@ -70,11 +73,12 @@ impl<'a> Parser<'a> {
             self.next_token(); // Consume the semicolon
         }
 
+        info!("END parse_expression_statement");
         Ok(statement)
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
-        // let prefix_fn = &self.prefix_parse_fns.get(&self.current_token);
+        info!("BEGIN parse_expression with precedence: {:?}", precedence);
 
         let prefix = match self.current_token.clone() {
             Token::Ident(_) => self.parse_identifier(),
@@ -105,15 +109,18 @@ impl<'a> Parser<'a> {
                     self.parse_infix_expression(left_expression?)
                 }
                 _ => {
+                    info!("END parse_expression");
                     return left_expression; // No infix function, return the left expression
                 }
             };
         }
-
+        
+        info!("END parse_expression");
         left_expression
     }
 
     fn parse_infix_expression(&mut self, left: ExpressionType) -> Option<ExpressionType> {
+        info!("BEGIN parse_infix_expression");
         let current_token = self.current_token.clone();
         let operator = current_token.to_literal();
         let precedence = self.get_precedence(&current_token);
@@ -127,9 +134,11 @@ impl<'a> Parser<'a> {
                 message: "Expected expression after infix operator".to_string(),
                 token: self.current_token.clone(),
             });
+
             return None;
         }
 
+        info!("END parse_infix_expression");
         Some(ExpressionType::Statement(Box::new(ExpressionType::Infix(
             InfixExpression::new(
                 current_token,
@@ -152,6 +161,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_prefix_expression");
         if let Token::Bang | Token::Minus = self.current_token {
             let current_token = self.current_token.clone();
             let operator = current_token.to_literal();
@@ -166,42 +176,54 @@ impl<'a> Parser<'a> {
                 });
             }
 
+            info!("END parse_prefix_expression");
             Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
                 PrefixExpression::new(current_token, operator, Box::new(right)),
             ))))
         } else {
+            info!("END parse_prefix_expression");
             None
         }
     }
 
     fn parse_identifier(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_identifier");
         if let Token::Ident(ref ident) = self.current_token {
+            info!("END parse_identifier");
             Some(ExpressionType::Identifier(Identifier::new(ident.clone())))
         } else {
+            info!("END parse_identifier");
             None
         }
     }
 
     fn parse_integer_literal(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_integer_literal");
         if let Token::Int(ref value) = self.current_token {
+            info!("END parse_integer_literal");
             Some(ExpressionType::IntegerLiteral(IntegerLiteral::new(
                 self.current_token.clone(),
                 value.clone(),
             )))
         } else {
+            info!("END parse_integer_literal");
             None
         }
     }
 
     fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
-        match self.current_token {
+        info!("BEGIN parse_statement");
+        let statement = match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
             Token::Return => Some(self.parse_return_statement()),
             _ => Some(self.parse_expression_statement()),
-        }
+        };
+        info!("END parse_statement");
+        statement
     }
 
     fn parse_let_statement(&mut self) -> Result<StatementType, ParseError> {
+        info!("BEGIN parse_let_statement");
         let let_token = self.current_token.clone();
 
         let name = if let Token::Ident(name) = self.peek_token.clone() {
@@ -229,6 +251,7 @@ impl<'a> Parser<'a> {
         // Here you would parse the value, but for simplicity, we will skip it
         // In a complete implementation, you would handle expressions here
 
+        info!("END parse_let_statement");
         Ok(StatementType::Let(LetStatement::new(
             let_token,
             Identifier::new(name),
@@ -237,6 +260,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> Result<StatementType, ParseError> {
+        info!("BEGIN parse_return_statement");
         let return_token = self.current_token.clone();
         let return_statement = ReturnStatement::new(return_token, None);
 
@@ -244,6 +268,7 @@ impl<'a> Parser<'a> {
             self.next_token(); // Skip tokens until we reach a semicolon
         }
 
+        info!("END parse_return_statement");
         Ok(StatementType::Return(return_statement))
     }
 
@@ -563,6 +588,7 @@ fn test_infix_expression(
     assert_eq!(infix_right_expr.value, right_value);
 }
 
+#[traced_test]
 #[rstest]
 #[case("-a * b", "((-a) * b)")]
 #[case("!-a", "(!(-a))")]
