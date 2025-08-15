@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use rstest::rstest;
@@ -508,8 +507,6 @@ fn test_infix_expression(
     #[case] operator: &str,
     #[case] right_value: i64,
 ) {
-    use crate::ast::expression_statement::ExpressionStatement;
-
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
