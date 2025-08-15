@@ -1,6 +1,6 @@
 use crate::{
     ast::{expression_types::ExpressionType, traits::Node},
-    token::token::Token,
+    token::Token,
 };
 
 #[derive(Debug, PartialEq)]

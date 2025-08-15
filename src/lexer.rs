@@ -1,6 +1,6 @@
 use rstest::rstest;
 
-use crate::token::token::{lookup_ident, Token};
+use crate::token::{lookup_ident, Token};
 pub struct Lexer<'a> {
     input: &'a str,
     position: usize,
@@ -39,7 +39,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> Token {
-        use crate::token::token::Token::*;
+        use crate::token::Token::*;
         self.skip_whitespace();
 
         let token = match self.ch {
@@ -117,7 +117,7 @@ impl<'a> Lexer<'a> {
 fn test_next_token_simple() {
     let input = "=+(){},;";
     let mut lexer = Lexer::new(input);
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
 
     let tests = vec![
         Assign, Plus, Lparen, Rparen, Lbrace, Rbrace, Comma, Semicolon, Eof,
@@ -131,7 +131,7 @@ fn test_next_token_simple() {
 
 #[rstest]
 fn test_next_token_semicolon() {
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
     let input = ";";
     let mut lexer = Lexer::new(input);
 
@@ -145,7 +145,7 @@ fn test_next_token_semicolon() {
 
 #[rstest]
 fn test_next_token_equals() {
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
     let input = "==;";
     let mut lexer = Lexer::new(input);
 
@@ -159,7 +159,7 @@ fn test_next_token_equals() {
 
 #[rstest]
 fn test_next_token_not_equals() {
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
     let input = "!=;";
     let mut lexer = Lexer::new(input);
 
@@ -173,7 +173,7 @@ fn test_next_token_not_equals() {
 
 #[rstest]
 fn test_next_token_double_char_tokens() {
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
     let input = "== !=;";
     let mut lexer = Lexer::new(input);
 
@@ -187,7 +187,7 @@ fn test_next_token_double_char_tokens() {
 
 #[rstest]
 fn test_next_token_statements() {
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
     let input = "
     let five = 5;
     let ten = 10;
@@ -260,7 +260,7 @@ fn test_next_token_statements() {
 
 #[rstest]
 fn test_next_token_statements_and_operators() {
-    use crate::token::token::Token::*;
+    use crate::token::Token::*;
     let input = "
     let five = 5;
     let ten = 10;

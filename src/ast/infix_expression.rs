@@ -1,4 +1,4 @@
-use crate::{ast::expression_types::ExpressionType, token::token::Token};
+use crate::{ast::expression_types::ExpressionType, token::Token};
 
 #[derive(Debug, PartialEq)]
 pub struct InfixExpression {

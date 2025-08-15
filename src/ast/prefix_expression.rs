@@ -1,4 +1,4 @@
-use crate::{ast::{expression_types::ExpressionType, traits::Node}, token::token::Token};
+use crate::{ast::{expression_types::ExpressionType, traits::Node}, token::Token};
 
 #[derive(Debug, PartialEq)]
 pub struct PrefixExpression {

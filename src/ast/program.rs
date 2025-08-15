@@ -72,7 +72,7 @@ impl Node for Program {
 fn test_program_string() {
     use crate::ast::identifier::Identifier;
     use crate::ast::let_statement::LetStatement;
-    use crate::token::token::Token;
+    use crate::token::Token;
 
     const EXPECTED: &str = "let myVar = anotherVar;";
 

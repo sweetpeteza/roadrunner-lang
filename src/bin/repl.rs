@@ -1,5 +1,5 @@
-use roadrunner::lexer::lexer::Lexer;
-use roadrunner::token::token::Token;
+use roadrunner::lexer::Lexer;
+use roadrunner::token::Token;
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 

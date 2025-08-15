@@ -1,6 +1,5 @@
 use crate::{
-    ast::{expression_types::ExpressionType, traits::Node},
-    token::token::Token,
+    ast::{expression_types::ExpressionType, traits::Node}, token::Token,
 };
 
 pub struct ExpressionStatement {

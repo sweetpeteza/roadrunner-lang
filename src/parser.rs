@@ -12,8 +12,8 @@ use crate::{
         identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement,
         program::Program, return_statement::ReturnStatement, statement_types::StatementType,
     },
-    lexer::lexer::Lexer,
-    token::token::Token,
+    lexer::Lexer,
+    token::Token,
 };
 
 pub struct Parser<'a> {
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
     }
 
     fn get_precedence(&self, token: &Token) -> Precedence {
-        use crate::token::token::Token::*;
+        use crate::token::Token::*;
         match token {
             Eq | NotEq => Precedence::Equals,
             LessThan | GreaterThan => Precedence::LessGreater,
