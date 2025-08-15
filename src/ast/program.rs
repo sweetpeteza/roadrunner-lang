@@ -5,6 +5,7 @@ use crate::ast::expression_types::ExpressionType;
 use super::statement_types::StatementType;
 use super::traits::Node;
 
+#[derive(Debug)]
 pub struct Program {
     pub statements: Vec<StatementType>,
 }

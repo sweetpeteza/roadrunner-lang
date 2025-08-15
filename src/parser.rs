@@ -86,7 +86,10 @@ impl<'a> Parser<'a> {
             Token::Int(_) => self.parse_integer_literal(),
             Token::Bang | Token::Minus => self.parse_prefix_expression(),
             Token::True | Token::False => self.parse_boolean_literal(),
-            _ => None,
+            Token::Lparen => self.parse_grouped_expression(),
+            _ => {
+                None
+            },
         };
 
         if prefix.is_none() {
@@ -116,7 +119,7 @@ impl<'a> Parser<'a> {
                 }
             };
         }
-        
+
         info!("END parse_expression");
         left_expression
     }
@@ -164,28 +167,58 @@ impl<'a> Parser<'a> {
 
     fn parse_prefix_expression(&mut self) -> Option<ExpressionType> {
         info!("BEGIN parse_prefix_expression");
-        if let Token::Bang | Token::Minus = self.current_token {
-            let current_token = self.current_token.clone();
-            let operator = current_token.to_literal();
-            self.next_token(); // Move past the operator
-
-            let right = self.parse_expression(Precedence::Prefix);
-
-            if right.is_none() {
-                self.errors.push(ParseError {
-                    message: "Expected expression after prefix operator".to_string(),
-                    token: self.current_token.clone(),
-                });
+        match self.current_token {
+            Token::Bang | Token::Minus => {
+                let current_token = self.current_token.clone();
+                let operator = current_token.to_literal();
+                self.next_token();
+                let right = self.parse_expression(Precedence::Prefix);
+                if right.is_none() {
+                    self.errors.push(ParseError {
+                        message: "Expected expression after prefix operator".to_string(),
+                        token: self.current_token.clone(),
+                    });
+                }
+                info!("END parse_prefix_expression");
+                Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
+                    PrefixExpression::new(current_token, operator, Box::new(right)),
+                ))))
             }
+            Token::Lbrace => {
+                let current_token = self.current_token.clone();
+                let operator = current_token.to_literal();
+                let expression = self.parse_grouped_expression();
 
-            info!("END parse_prefix_expression");
-            Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
-                PrefixExpression::new(current_token, operator, Box::new(right)),
-            ))))
-        } else {
-            info!("END parse_prefix_expression");
-            None
+                Some(ExpressionType::Statement(Box::new(
+                    ExpressionType::Prefix(PrefixExpression::new(
+                        current_token,
+                        operator,
+                        Box::new(expression),
+                    )),
+                )))
+            }
+            _ => {
+                info!("END parse_prefix_expression");
+                None
+            }
         }
+    }
+
+    fn parse_grouped_expression(&mut self) -> Option<ExpressionType> {
+        info!("BEGIN parse_grouped_expression");
+
+        self.next_token(); // Consume the opening parenthesis
+
+        let expression = self.parse_expression(Precedence::Lowest);
+
+        if self.peek_token != Token::Rparen {
+            return None;
+        }
+
+        self.next_token(); // Consume the closing parenthesis
+
+        info!("END parse_grouped_expression");
+        expression
     }
 
     fn parse_identifier(&mut self) -> Option<ExpressionType> {
@@ -219,14 +252,14 @@ impl<'a> Parser<'a> {
             Token::True | Token::False => {
                 info!("END parse_boolean_literal");
                 Some(ExpressionType::BooleanLiteral(BooleanLiteral::new(
-                            self.current_token.clone(),
-                            self.current_token == Token::True,
-                        )))
+                    self.current_token.clone(),
+                    self.current_token == Token::True,
+                )))
             }
             _ => {
-                    info!("END parse_boolean_literal");
-                    None
-                }
+                info!("END parse_boolean_literal");
+                None
+            }
         }
     }
 
@@ -306,6 +339,13 @@ impl<'a> Parser<'a> {
     //     self.next_token(); // Move past the expected token
     //     Ok(())
     // }
+}
+
+#[cfg(test)]
+#[derive(Debug, PartialEq)]
+enum TestValue {
+    Integer(i64),
+    Boolean(bool),
 }
 
 #[rstest]
@@ -505,16 +545,25 @@ fn test_boolean_literal_expression() {
                 Some(ExpressionType::BooleanLiteral(literal)) => {
                     assert_eq!(literal.value, true);
                 }
-                _ => panic!("Expected an boolean literal expression, got: {:?}", bool_literal),
+                _ => panic!(
+                    "Expected an boolean literal expression, got: {:?}",
+                    bool_literal
+                ),
             }
         }
     }
 }
 
 #[rstest]
-#[case("!5;", "!", 5)]
-#[case("-1;", "-", 1)]
-fn test_parsing_prefix_expression(#[case] input: &str, #[case] operator: &str, #[case] value: i64) {
+#[case("!5;", "!", TestValue::Integer(5))]
+#[case("-1;", "-", TestValue::Integer(1))]
+#[case("!true;", "!", TestValue::Boolean(true))]
+#[case("!false;", "!", TestValue::Boolean(false))]
+fn test_parsing_prefix_expression(
+    #[case] input: &str,
+    #[case] operator: &str,
+    #[case] value: TestValue,
+) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
@@ -556,29 +605,52 @@ fn test_parsing_prefix_expression(#[case] input: &str, #[case] operator: &str, #
 
     let right_expr = prefix_expr.right.as_ref();
 
-    let integer_literal = match right_expr {
-        Some(ExpressionType::IntegerLiteral(integer_literal)) => integer_literal,
+    let expression_literal = match right_expr {
+        Some(ExpressionType::IntegerLiteral(integer_literal)) => {
+            TestValue::Integer(integer_literal.value)
+        }
+        Some(ExpressionType::BooleanLiteral(boolean_literal)) => {
+            TestValue::Boolean(boolean_literal.value)
+        }
         _ => {
             panic!("Expected an integer literal as the right expression");
         }
     };
-    assert_eq!(integer_literal.value, value);
+    assert_eq!(expression_literal, value);
 }
 
 #[rstest]
-#[case("5 + 5;", 5, "+", 5)]
-#[case("5 - 5;", 5, "-", 5)]
-#[case("5 * 5;", 5, "*", 5)]
-#[case("5 / 5;", 5, "/", 5)]
-#[case("5 > 5;", 5, ">", 5)]
-#[case("5 < 5;", 5, "<", 5)]
-#[case("5 == 5;", 5, "==", 5)]
-#[case("5 != 5;", 5, "!=", 5)]
+#[case("5 + 5;", TestValue::Integer(5), "+", TestValue::Integer(5))]
+#[case("5 - 5;", TestValue::Integer(5), "-", TestValue::Integer(5))]
+#[case("5 * 5;", TestValue::Integer(5), "*", TestValue::Integer(5))]
+#[case("5 / 5;", TestValue::Integer(5), "/", TestValue::Integer(5))]
+#[case("5 > 5;", TestValue::Integer(5), ">", TestValue::Integer(5))]
+#[case("5 < 5;", TestValue::Integer(5), "<", TestValue::Integer(5))]
+#[case("5 == 5;", TestValue::Integer(5), "==", TestValue::Integer(5))]
+#[case("5 != 5;", TestValue::Integer(5), "!=", TestValue::Integer(5))]
+#[case(
+    "true == true;",
+    TestValue::Boolean(true),
+    "==",
+    TestValue::Boolean(true)
+)]
+#[case(
+    "true != false;",
+    TestValue::Boolean(true),
+    "!=",
+    TestValue::Boolean(false)
+)]
+#[case(
+    "false == false;",
+    TestValue::Boolean(false),
+    "==",
+    TestValue::Boolean(false)
+)]
 fn test_infix_expression(
     #[case] input: &str,
-    #[case] left_value: i64,
+    #[case] left_value: TestValue,
     #[case] operator: &str,
-    #[case] right_value: i64,
+    #[case] right_value: TestValue,
 ) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
@@ -609,35 +681,50 @@ fn test_infix_expression(
 
     let infix_left_expr = match infix_expression.left.as_ref() {
         Some(left_expr) => match left_expr {
-            ExpressionType::IntegerLiteral(integer_literal) => integer_literal,
+            ExpressionType::IntegerLiteral(integer_literal) => {
+                TestValue::Integer(integer_literal.value)
+            }
+            ExpressionType::BooleanLiteral(boolean_literal) => {
+                TestValue::Boolean(boolean_literal.value)
+            }
             _ => {
-                panic!("Expected an integer literal as the left expression");
+                panic!("Expected an integer or boolean literal as the left expression");
             }
         },
         None => {
             panic!("Expected a left expression in the infix expression");
         }
     };
+    assert_eq!(infix_left_expr, left_value);
+
     let infix_operator = infix_expression.operator.clone();
+    assert_eq!(infix_operator, operator);
+
     let infix_right_expr = match infix_expression.right.as_ref() {
         Some(right_expr) => match right_expr {
-            ExpressionType::IntegerLiteral(integer_literal) => integer_literal,
+            ExpressionType::IntegerLiteral(integer_literal) => {
+                TestValue::Integer(integer_literal.value)
+            }
+            ExpressionType::BooleanLiteral(boolean_literal) => {
+                TestValue::Boolean(boolean_literal.value)
+            }
             _ => {
-                panic!("Expected an integer literal as the right expression");
+                panic!("Expected an integer or boolean literal as the right expression");
             }
         },
         None => {
             panic!("Expected a right expression in the infix expression");
         }
     };
-
-    assert_eq!(infix_left_expr.value, left_value);
-    assert_eq!(infix_operator, operator);
-    assert_eq!(infix_right_expr.value, right_value);
+    assert_eq!(infix_right_expr, right_value);
 }
 
 #[traced_test]
 #[rstest]
+#[case("true", "true")]
+#[case("false", "false")]
+#[case("3 > 5 == false", "((3 > 5) == false)")]
+#[case("3 < 5 == true", "((3 < 5) == true)")]
 #[case("-a * b", "((-a) * b)")]
 #[case("!-a", "(!(-a))")]
 #[case("a + b + c", "((a + b) + c)")]
@@ -650,6 +737,11 @@ fn test_infix_expression(
 #[case("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))")]
 #[case("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))")]
 #[case("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))")]
+#[case("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)")]
+#[case("(5 + 5) * 2", "((5 + 5) * 2)")]
+#[case("2 / (5 + 5)", "(2 / (5 + 5))")]
+#[case("-(5 + 5)", "(-(5 + 5))")]
+#[case("!(true == true)", "(!(true == true))")]
 fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output: &str) {
     use crate::ast::traits::Node;
 
@@ -664,5 +756,8 @@ fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output
     });
 
     assert_eq!(errors.len(), 0);
+
+    // dbg!(&program);
+
     assert_eq!(program.string(), expected_output);
 }
