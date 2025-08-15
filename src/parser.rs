@@ -7,6 +7,7 @@ use tracing_test::traced_test;
 use crate::ast::block_statement::BlockStatement;
 use crate::ast::boolean_literal::BooleanLiteral;
 use crate::ast::expression_types::ExpressionType;
+use crate::ast::function_literal::{self, FunctionLiteral};
 use crate::ast::if_expression::IfExpression;
 use crate::ast::infix_expression::InfixExpression;
 use crate::ast::precedence::Precedence;
@@ -91,6 +92,7 @@ impl<'a> Parser<'a> {
             Token::True | Token::False => self.parse_boolean_literal(),
             Token::Lparen => self.parse_grouped_expression(),
             Token::If => self.parse_if_expression(),
+            Token::Function => self.parse_function_literal(),
             _ => None,
         };
 
@@ -178,7 +180,6 @@ impl<'a> Parser<'a> {
         self.next_token(); // Consume the closing parenthesis
 
         if self.current_token != Token::Lbrace {
-            info!("END parse_if_expression - missing opening brace");
             return None;
         }
 
@@ -191,7 +192,7 @@ impl<'a> Parser<'a> {
                 Token::Lbrace => {
                     self.next_token(); // consume else
                     Some(self.parse_block_statement())
-                },
+                }
                 _ => None,
             }
         } else {
@@ -202,6 +203,59 @@ impl<'a> Parser<'a> {
         Some(ExpressionType::Statement(Box::new(ExpressionType::If(
             IfExpression::new(if_token, Box::new(expression), consequence, alternative),
         ))))
+    }
+
+    fn parse_function_literal(&mut self) -> Option<ExpressionType> {
+        let token = self.current_token.clone();
+
+        if self.peek_token != Token::Lparen {
+            return None;
+        }
+
+        self.next_token(); // consume l paren
+
+        let parameters = self.parse_fn_params();
+
+        if self.peek_token != Token::Lbrace {
+            return None;
+        }
+
+        self.next_token(); // consume l brace
+
+        let body = self.parse_block_statement();
+
+        Some(ExpressionType::Function(FunctionLiteral {
+            token,
+            parameters,
+            body,
+        }))
+    }
+
+    fn parse_fn_params(&mut self) -> Vec<Identifier> {
+        let mut params = Vec::new();
+
+        if self.peek_token == Token::Rparen {
+            self.next_token();
+            return params;
+        }
+
+        self.next_token();
+        let ident = Identifier::new(self.current_token.clone().to_literal());
+
+        params.push(ident);
+
+        while self.peek_token == Token::Comma {
+            self.next_token(); // consume comma
+            self.next_token(); // ???
+
+            params.push(Identifier::new(self.current_token.clone().to_literal()));
+        }
+
+        if self.peek_token != Token::Rparen {
+            return vec![];
+        }
+
+        params
     }
 
     fn parse_block_statement(&mut self) -> BlockStatement {
@@ -1015,4 +1069,87 @@ fn test_if_else_expresssion() {
         }
         _ => panic!("Expected an identifier expression in the alternative block statement"),
     }
+}
+
+#[rstest]
+fn test_parse_function_literal() {
+    let input = "fn(x,y) { x + y; }";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let mut statements = program.statements.iter();
+    let first_statement = statements.next();
+
+    dbg!(&first_statement);
+
+    let function_literal = match first_statement {
+        Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
+            match expr.as_ref() {
+                // deref the Box here
+                ExpressionType::Function(fn_literal) => fn_literal,
+                _ => panic!("Expected an function literal, got {:?}", expr),
+            }
+        }
+        _ => panic!(
+            "Expected an expression statement, got {:?}",
+            first_statement
+        ),
+    };
+
+    let mut params = function_literal.clone().parameters.iter();
+
+    assert_eq!(params.len(), 2);
+
+    let first_param = params.next().unwrap();
+    let second_param = params.next().unwrap();
+
+    assert_eq!(&first_param.value, "x");
+    assert_eq!(&second_param.value, "y");
+
+    let mut statements = function_literal.body.statements.iter();
+
+    assert_eq!(statements.len(), 1);
+
+    let body_statement = statements.next();
+
+    dbg!(&body_statement);
+
+    let infix_expr = match body_statement {
+        Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => match expr.as_ref() {
+            ExpressionType::Infix(infix) => {
+                match infix.left.as_ref() {
+                    Some(ExpressionType::Identifier(ident)) => {
+                        assert_eq!(ident.value, "x");
+                    }
+                    _ => panic!("Expected an identifier as the left expression"),
+                }
+                match infix.right.as_ref() {
+                    Some(ExpressionType::Identifier(ident)) => {
+                        assert_eq!(ident.value, "y");
+                    }
+                    _ => panic!("Expected an identifier as the right expression"),
+                }
+                assert_eq!(infix.operator, "+");
+                infix
+            }
+            _ => panic!(
+                "Expected an infix expression as the condition, got {:?}",
+                expr
+            ),
+        },
+        _ => panic!(
+            "Expected an infix expression as the condition, got {:?}",
+            body_statement
+        ),
+    };
 }

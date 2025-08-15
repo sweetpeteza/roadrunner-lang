@@ -15,3 +15,4 @@ pub mod infix_expression;
 pub mod boolean_literal;
 pub mod if_expression;
 pub mod block_statement;
+pub mod function_literal;
