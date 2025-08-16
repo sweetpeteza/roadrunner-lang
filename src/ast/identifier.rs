@@ -1,6 +1,6 @@
 use crate::ast::traits::Node;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub value: String,
 }
