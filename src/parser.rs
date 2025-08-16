@@ -949,6 +949,12 @@ fn test_infix_expression(
 #[case("2 / (5 + 5)", "(2 / (5 + 5))")]
 #[case("-(5 + 5)", "(-(5 + 5))")]
 #[case("!(true == true)", "(!(true == true))")]
+#[case("a + add(b * c) + d", "((a + add((b * c))) + d)")]
+#[case(
+    "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+    "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"
+)]
+#[case("add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))")]
 fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output: &str) {
     use crate::ast::traits::Node;
 
