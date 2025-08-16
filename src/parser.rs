@@ -6,12 +6,14 @@ use tracing_test::traced_test;
 
 use crate::ast::block_statement::BlockStatement;
 use crate::ast::boolean_literal::BooleanLiteral;
+use crate::ast::call_expression::CallExpression;
 use crate::ast::expression_types::ExpressionType;
 use crate::ast::function_literal::FunctionLiteral;
 use crate::ast::if_expression::IfExpression;
 use crate::ast::infix_expression::InfixExpression;
 use crate::ast::precedence::Precedence;
 use crate::ast::prefix_expression::PrefixExpression;
+use crate::ast::traits::Node;
 use crate::{
     ast::{
         identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement,
@@ -82,17 +84,19 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
+        use crate::token::Token::*;
         info!("BEGIN parse_expression with precedence: {:?}", precedence);
 
+        debug!("exp t: {:?}", self.current_token);
         // this is where the book has a hashmap of prefix functions
         let prefix = match self.current_token.clone() {
-            Token::Ident(_) => self.parse_identifier(),
-            Token::Int(_) => self.parse_integer_literal(),
-            Token::Bang | Token::Minus => self.parse_prefix_expression(),
-            Token::True | Token::False => self.parse_boolean_literal(),
-            Token::Lparen => self.parse_grouped_expression(),
-            Token::If => self.parse_if_expression(),
-            Token::Function => self.parse_function_literal(),
+            Ident(_) => self.parse_identifier(),
+            Int(_) => self.parse_integer_literal(),
+            Bang | Token::Minus => self.parse_prefix_expression(),
+            True | Token::False => self.parse_boolean_literal(),
+            Lparen => self.parse_grouped_expression(),
+            If => self.parse_if_expression(),
+            Function => self.parse_function_literal(),
             _ => None,
         };
 
@@ -107,15 +111,9 @@ impl<'a> Parser<'a> {
         {
             // this is where the book has a hashmap of infix functions
             left_expression = match self.peek_token.clone() {
-                Token::Plus
-                | Token::Minus
-                | Token::Slash
-                | Token::Asterisk
-                | Token::Eq
-                | Token::NotEq
-                | Token::LessThan
-                | Token::GreaterThan => {
-                    self.next_token(); // Move past the infix operator
+                Lparen => self.parse_call_expression(left_expression?),
+                Plus | Minus | Slash | Asterisk | Eq | NotEq | LessThan | GreaterThan => {
+                    self.next_token(); // move past the infix operator
                     self.parse_infix_expression(left_expression?)
                 }
                 _ => {
@@ -157,6 +155,64 @@ impl<'a> Parser<'a> {
                 Box::new(right),
             ),
         ))))
+    }
+
+    fn parse_call_expression(&mut self, function: ExpressionType) -> Option<ExpressionType> {
+        info!("BEGIN parse_call_expression");
+        let token = self.peek_token.clone();
+        let args = self.parse_call_arguments();
+
+        info!("END parse_call_expression");
+        Some(ExpressionType::Statement(Box::new(ExpressionType::Call(
+            CallExpression::new(token, Box::new(function), args),
+        ))))
+    }
+
+    fn parse_call_arguments(&mut self) -> Vec<ExpressionType> {
+        info!("BEGIN parse_call_arguments");
+        let mut args = Vec::new();
+
+        debug!("1");
+        if self.peek_token == Token::Rparen {
+            self.next_token();
+            debug!("2");
+
+            info!("END parse_call_arguments - pt == rparen");
+            return args;
+        }
+
+        debug!("3");
+        self.next_token();
+
+        debug!("4");
+        if let Some(e) = self.parse_expression(Precedence::Lowest) {
+            debug!("5");
+            args.push(e);
+        }
+
+        debug!("6");
+        while self.peek_token == Token::Comma {
+            debug!("7");
+            self.next_token();
+            debug!("8");
+            self.next_token();
+            debug!("9");
+            if let Some(e) = self.parse_expression(Precedence::Lowest) {
+                debug!("10");
+                args.push(e);
+            }
+        }
+
+        debug!("11");
+        if self.peek_token != Token::Rparen {
+            info!("END parse_call_arguments - pt != rparen");
+            return vec![];
+        } else {
+            self.next_token();
+        }
+
+        info!("END parse_call_arguments");
+        args
     }
 
     fn parse_if_expression(&mut self) -> Option<ExpressionType> {
@@ -309,6 +365,7 @@ impl<'a> Parser<'a> {
             LessThan | GreaterThan => Precedence::LessGreater,
             Plus | Minus => Precedence::Sum,
             Asterisk | Slash => Precedence::Product,
+            Lparen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -354,9 +411,10 @@ impl<'a> Parser<'a> {
         self.next_token(); // Consume the opening parenthesis
 
         let expression = self.parse_expression(Precedence::Lowest);
+        debug!("egx {:?}", expression);
 
         if self.peek_token != Token::Rparen {
-            return None;
+            return expression;
         }
 
         self.next_token(); // Consume the closing parenthesis
@@ -371,7 +429,7 @@ impl<'a> Parser<'a> {
             info!("END parse_identifier");
             Some(ExpressionType::Identifier(Identifier::new(ident.clone())))
         } else {
-            info!("END parse_identifier");
+            info!("END parse_identifier - not id");
             None
         }
     }
@@ -385,7 +443,10 @@ impl<'a> Parser<'a> {
                 value.clone(),
             )))
         } else {
-            info!("END parse_integer_literal");
+            info!(
+                "END parse_integer_literal - not int, {:?}",
+                self.current_token
+            );
             None
         }
     }
@@ -1167,4 +1228,53 @@ fn test_parse_function_literal(#[case] input: &str, #[case] expected_params: Vec
         },
         _ => {}
     }
+}
+
+#[traced_test]
+#[rstest]
+fn test_call_expresssion() {
+    let input = "add(1, 2 * 3, 4 + 5)";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let mut statements = program.statements.iter();
+    let first_statement = statements.next();
+
+    dbg!(&first_statement);
+
+    let call_expression = match first_statement {
+        Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
+            match expr.as_ref() {
+                // deref the Box here
+                ExpressionType::Call(call_expr) => call_expr,
+                _ => panic!("Expected an call expression, got {:?}", expr),
+            }
+        }
+        _ => panic!(
+            "Expected an expression statement, got {:?}",
+            first_statement
+        ),
+    };
+
+    assert_eq!(call_expression.token.to_literal(), "(");
+    assert_eq!(call_expression.arguments.len(), 3);
+
+    let function_expr = call_expression.function.as_ref();
+
+    match function_expr {
+        ExpressionType::Identifier(ident) => {
+            assert_eq!(&ident.value, "add");
+        }
+        _ => panic!("Expected identifier, got {:?}", function_expr),
+    };
 }
