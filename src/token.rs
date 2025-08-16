@@ -36,7 +36,7 @@ impl Token {
         match self {
             Token::Illegal => "ILLEGAL".to_string(),
             Token::Eof => "EOF".to_string(),
-            Token::Ident(id) => id.to_owned(),
+            Token::Ident(id) => id.clone().to_owned(),
             Token::Int(int) => int.to_string(),
             Token::Assign => "=".to_string(),
             Token::Plus => "+".to_string(),

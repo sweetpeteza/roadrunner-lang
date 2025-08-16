@@ -7,7 +7,7 @@ use tracing_test::traced_test;
 use crate::ast::block_statement::BlockStatement;
 use crate::ast::boolean_literal::BooleanLiteral;
 use crate::ast::expression_types::ExpressionType;
-use crate::ast::function_literal::{self, FunctionLiteral};
+use crate::ast::function_literal::FunctionLiteral;
 use crate::ast::if_expression::IfExpression;
 use crate::ast::infix_expression::InfixExpression;
 use crate::ast::precedence::Precedence;
@@ -944,7 +944,7 @@ fn test_if_expresssion() {
         ),
     };
 
-    let infix_expr = match if_expression.condition.as_ref() {
+    let _infix_expr = match if_expression.condition.as_ref() {
         Some(ExpressionType::Statement(expr)) => match expr.as_ref() {
             ExpressionType::Infix(infix) => {
                 match infix.left.as_ref() {
@@ -1027,7 +1027,7 @@ fn test_if_else_expresssion() {
         ),
     };
 
-    let infix_expr = match if_expression.condition.as_ref() {
+    let _infix_expr = match if_expression.condition.as_ref() {
         Some(ExpressionType::Statement(expr)) => match expr.as_ref() {
             ExpressionType::Infix(infix) => {
                 match infix.left.as_ref() {
