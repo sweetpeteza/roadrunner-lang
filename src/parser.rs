@@ -220,9 +220,6 @@ impl<'a> Parser<'a> {
 
         let parameters = self.parse_fn_params();
 
-        debug!("current_token: {:?}", self.current_token);
-        debug!("peek_token: {:?}", self.peek_token);
-
         if self.peek_token != Token::Lbrace {
             info!("END parse_function_literal - did not find l brace");
             return None;
@@ -243,29 +240,26 @@ impl<'a> Parser<'a> {
     fn parse_fn_params(&mut self) -> Vec<Identifier> {
         info!("BEGIN parse_fn_params");
         let mut params = Vec::new();
-        debug!("current_token: {:?}", self.current_token);
-        debug!("peek_token: {:?}", self.peek_token);
 
         if self.peek_token == Token::Rparen {
-            info!("END parse_fn_params - peek_token != Token::Rparen");
             self.next_token();
             return params;
         }
 
-        self.next_token();
         let ident = Identifier::new(self.current_token.clone().to_literal());
 
         params.push(ident);
 
         while self.peek_token == Token::Comma {
             self.next_token(); // consume comma
-            self.next_token(); // ???
+            self.next_token(); // consume param
 
             params.push(Identifier::new(self.current_token.clone().to_literal()));
         }
+            
+        self.next_token(); // consume last param
 
-        if self.peek_token != Token::Rparen {
-            info!("END parse_fn_params - peek_token == Token::Rparen");
+        if self.current_token != Token::Rparen {
             return vec![];
         }
         info!("END parse_fn_params");
@@ -1109,20 +1103,11 @@ fn test_parse_function_literal() {
     dbg!(&first_statement);
 
     let function_literal = match first_statement {
-        Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
-            match expr.as_ref() {
-                // deref the Box here
-                ExpressionType::Function(fn_literal) => fn_literal,
-                _ => panic!("Expected an function literal, got {:?}", expr),
-            }
-        }
-        _ => panic!(
-            "Expected an expression statement, got {:?}",
-            first_statement
-        ),
+        Some(StatementType::Expr(Some(ExpressionType::Function(fn_literal)))) =>  fn_literal,
+        _ => panic!("Expected an function literal, got {:?}", first_statement),
     };
 
-    let mut params = function_literal.clone().parameters.iter();
+    let mut params = function_literal.parameters.iter();
 
     assert_eq!(params.len(), 2);
 
