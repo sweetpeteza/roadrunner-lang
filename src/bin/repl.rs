@@ -1,5 +1,7 @@
+use roadrunner::ast::program::Program;
+use roadrunner::ast::traits::Node;
 use roadrunner::lexer::Lexer;
-use roadrunner::token::Token;
+use roadrunner::parser::Parser;
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 
@@ -15,14 +17,16 @@ fn main() -> Result<(), anyhow::Error> {
             Ok(line) => {
                 // Tokenize the input here, for example:
                 let mut lexer = Lexer::new(&line);
+                let mut parser = Parser::new(&mut lexer);
+                let program: Program = parser.parse_program();
 
-                loop {
-                    let token = lexer.next_token();
-                    if token == Token::Eof {
-                        break;
+                if parser.errors.len() > 0 {
+                    for err in parser.errors.iter() {
+                        println!("\t{}", err.message);
                     }
-                    println!("{:?}", token);
                 }
+
+                println!("{}", program.string());
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C pressed. Exiting.");
