@@ -548,6 +548,7 @@ fn test_let_statements() {
         let x = 5;
         let y = 10;
         let foobar = 838383;
+        let foobar = 1 + 2;
         ";
 
     let mut lexer = Lexer::new(input);
@@ -565,7 +566,7 @@ fn test_let_statements() {
     });
 
     assert_eq!(errors.len(), 0);
-    // assert_eq!(program.statements.len(), 3);
+    assert_eq!(program.statements.len(), 4);
     // assert_eq!(
     //     program.statements[0],
     //     StatementType::Let(LetStatement::new(

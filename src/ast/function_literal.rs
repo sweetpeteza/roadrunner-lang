@@ -28,7 +28,9 @@ impl Node for FunctionLiteral {
         out.push_str("(");
         out.push_str(params.join(", ").as_str());
         out.push_str(")");
+        out.push_str("{");
         out.push_str(&self.body.string());
+        out.push_str("}");
 
         out
     }
