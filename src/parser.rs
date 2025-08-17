@@ -87,13 +87,12 @@ impl<'a> Parser<'a> {
         use crate::token::Token::*;
         info!("BEGIN parse_expression with precedence: {:?}", precedence);
 
-        debug!("exp t: {:?}", self.current_token);
         // this is where the book has a hashmap of prefix functions
         let prefix = match self.current_token.clone() {
             Ident(_) => self.parse_identifier(),
             Int(_) => self.parse_integer_literal(),
-            Bang | Token::Minus => self.parse_prefix_expression(),
-            True | Token::False => self.parse_boolean_literal(),
+            Bang | Minus => self.parse_prefix_expression(),
+            True | False => self.parse_boolean_literal(),
             Lparen => self.parse_grouped_expression(),
             If => self.parse_if_expression(),
             Function => self.parse_function_literal(),
@@ -143,7 +142,7 @@ impl<'a> Parser<'a> {
                 token: self.current_token.clone(),
             });
 
-            return None;
+            return Some(left);
         }
 
         info!("END parse_infix_expression");
@@ -172,41 +171,30 @@ impl<'a> Parser<'a> {
         info!("BEGIN parse_call_arguments");
         let mut args = Vec::new();
 
-        debug!("1");
         if self.peek_token == Token::Rparen {
             self.next_token();
-            debug!("2");
 
             info!("END parse_call_arguments - pt == rparen");
             return args;
         }
 
-        debug!("3");
         self.next_token();
 
-        debug!("4");
         if let Some(e) = self.parse_expression(Precedence::Lowest) {
-            debug!("5");
             args.push(e);
         }
 
-        debug!("6");
         while self.peek_token == Token::Comma {
-            debug!("7");
             self.next_token();
-            debug!("8");
             self.next_token();
-            debug!("9");
             if let Some(e) = self.parse_expression(Precedence::Lowest) {
-                debug!("10");
                 args.push(e);
             }
         }
 
-        debug!("11");
         if self.peek_token != Token::Rparen {
             info!("END parse_call_arguments - pt != rparen");
-            return vec![];
+            return args;
         } else {
             self.next_token();
         }
@@ -273,7 +261,6 @@ impl<'a> Parser<'a> {
         }
 
         let parameters = self.parse_fn_params();
-        debug!("params: {:?}", parameters);
 
         if self.peek_token != Token::Lbrace {
             info!("END parse_function_literal - did not find l brace");
@@ -361,11 +348,11 @@ impl<'a> Parser<'a> {
     fn get_precedence(&self, token: &Token) -> Precedence {
         use crate::token::Token::*;
         match token {
+            Lparen => Precedence::Call,
             Eq | NotEq => Precedence::Equals,
             LessThan | GreaterThan => Precedence::LessGreater,
             Plus | Minus => Precedence::Sum,
             Asterisk | Slash => Precedence::Product,
-            Lparen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -411,7 +398,6 @@ impl<'a> Parser<'a> {
         self.next_token(); // Consume the opening parenthesis
 
         let expression = self.parse_expression(Precedence::Lowest);
-        debug!("egx {:?}", expression);
 
         if self.peek_token != Token::Rparen {
             return expression;
