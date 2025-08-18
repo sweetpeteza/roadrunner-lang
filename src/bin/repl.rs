@@ -18,7 +18,7 @@ fn main() -> Result<(), anyhow::Error> {
                 // Tokenize the input here, for example:
                 let mut lexer = Lexer::new(&line);
                 let mut parser = Parser::new(&mut lexer);
-                let program: Program = parser.parse_program();
+                let program = parser.parse_program();
 
                 if parser.errors.len() > 0 {
                     for err in parser.errors.iter() {
@@ -26,7 +26,7 @@ fn main() -> Result<(), anyhow::Error> {
                     }
                 }
 
-                println!("{}", program.string());
+                println!("{:?}", program);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C pressed. Exiting.");
