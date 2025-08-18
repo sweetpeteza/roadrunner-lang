@@ -2,8 +2,8 @@ use roadrunner::ast::program::Program;
 use roadrunner::ast::traits::Node;
 use roadrunner::lexer::Lexer;
 use roadrunner::parser::Parser;
-use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 
 fn main() -> Result<(), anyhow::Error> {
     println!("Hello! This is the Roadrunner programming language!");
@@ -26,7 +26,7 @@ fn main() -> Result<(), anyhow::Error> {
                     }
                 }
 
-                println!("{:?}", program);
+                println!("{:?}", program.string());
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C pressed. Exiting.");

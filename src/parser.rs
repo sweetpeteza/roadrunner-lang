@@ -36,8 +36,6 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    // pub fn parse_program(&mut self) -> Program {
-    //     let mut program = Program::new();
     pub fn parse_program(&mut self) -> Node {
         info!("BEGIN parse_program");
         let mut statements = vec![];
@@ -45,7 +43,6 @@ impl<'a> Parser<'a> {
         while self.current_token != Token::Eof {
             match self.parse_statement() {
                 Ok(statement) => {
-                    //                    program.statements.push(statement);
                     statements.push(*statement);
                 }
                 Err(e) => {
@@ -58,7 +55,6 @@ impl<'a> Parser<'a> {
         Node::Program { statements }
     }
 
-    // fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
     fn parse_expression_statement(&mut self) -> Result<Box<Node>, ParseError> {
         info!("BEGIN parse_expression_statement");
         let expression = self.parse_expression(Precedence::Lowest);
@@ -75,7 +71,6 @@ impl<'a> Parser<'a> {
         Ok(Box::new(statement))
     }
 
-    // fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<Node>> {
         use crate::token::Token::*;
         info!("BEGIN parse_expression with precedence: {:?}", precedence);
@@ -276,11 +271,6 @@ impl<'a> Parser<'a> {
                 parameters,
                 body,
             }));
-            // return Some(ExpressionType::Function(FunctionLiteral {
-            //     token,
-            //     parameters,
-            //     body: empty_body,
-            // }));
         }
 
         self.next_token(); // consume l brace
@@ -293,11 +283,6 @@ impl<'a> Parser<'a> {
             parameters,
             body,
         }))
-        // Some(ExpressionType::Function(FunctionLiteral {
-        //     token,
-        //     parameters,
-        //     body,
-        // }))
     }
 
     fn parse_fn_params(&mut self) -> Vec<Node> {
@@ -313,9 +298,6 @@ impl<'a> Parser<'a> {
             return params;
         }
 
-        // let ident = Identifier::new(self.current_token.clone().to_literal());
-
-        // params.push(ident);
         params.push(Node::Identifier {
             name: self.current_token.clone().to_literal(),
         });
@@ -324,7 +306,6 @@ impl<'a> Parser<'a> {
             self.next_token(); // consume comma
             self.next_token(); // consume param
 
-            // params.push(Identifier::new(self.current_token.clone().to_literal()));
             params.push(Node::Identifier {
                 name: self.current_token.clone().to_literal(),
             });
@@ -343,14 +324,12 @@ impl<'a> Parser<'a> {
 
     fn parse_block_statement(&mut self) -> Option<Box<Node>> {
         info!("BEGIN parse_block_statement");
-        // let mut block = BlockStatement::new(self.current_token.clone());
         let mut statements = Vec::new();
 
         self.next_token(); // Consume the opening brace
 
         while self.current_token != Token::Rbrace && self.current_token != Token::Eof {
             match self.parse_statement() {
-                // Ok(stmt) => block.statements.push(stmt),
                 Ok(stmt) => statements.push(*stmt),
                 Err(e) => {
                     error!("Error parsing block statement: {:?}", e);
@@ -361,7 +340,6 @@ impl<'a> Parser<'a> {
         }
 
         info!("END parse_block_statement");
-        // block
         Some(Box::new(Node::Block { statements }))
     }
 
@@ -397,9 +375,6 @@ impl<'a> Parser<'a> {
                     operator,
                     right,
                 }))
-                // Some(NodeType::Statement(Box::new(ExpressionType::Prefix(
-                //     PrefixExpression::new(current_token, operator, Box::new(right)),
-                // ))))
             }
             Token::Lbrace => {
                 let current_token = self.current_token.clone();
@@ -411,9 +386,6 @@ impl<'a> Parser<'a> {
                     operator,
                     right,
                 }))
-                // Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
-                //     PrefixExpression::new(current_token, operator, Box::new(expression)),
-                // ))))
             }
             _ => {
                 info!("END parse_prefix_expression");
@@ -446,7 +418,6 @@ impl<'a> Parser<'a> {
             Some(Box::new(Node::Identifier {
                 name: ident.clone(),
             }))
-            // Some(ExpressionType::Identifier(Identifier::new(ident.clone())))
         } else {
             info!("END parse_identifier - not id");
             None
@@ -458,10 +429,6 @@ impl<'a> Parser<'a> {
         if let Token::Int(value) = self.current_token {
             info!("END parse_integer_literal");
             Some(Box::new(Node::IntegerLiteral { value }))
-            // Some(ExpressionType::IntegerLiteral(IntegerLiteral::new(
-            //     self.current_token.clone(),
-            //     value.clone(),
-            // )))
         } else {
             info!(
                 "END parse_integer_literal - not int, {:?}",
@@ -478,7 +445,6 @@ impl<'a> Parser<'a> {
             Token::True | Token::False => {
                 info!("END parse_boolean_literal");
                 Some(Box::new(Node::BooleanLiteral {
-                    // self.current_token.clone(),
                     value: self.current_token == Token::True,
                 }))
             }
@@ -551,14 +517,15 @@ impl<'a> Parser<'a> {
         info!("BEGIN parse_return_statement");
         let return_token = self.current_token.clone();
 
-        self.next_token(); // Skip tokens until we reach a semicolon
-        while self.peek_token == Token::Semicolon {
-            self.next_token(); // Skip tokens until we reach a semicolon
-        }
+        self.next_token(); // move past the 'return' token
+
         let return_value = self.parse_expression(Precedence::Lowest);
         let return_statement = Node::Return {
             /*return_token,*/ return_value,
         };
+        while self.current_token != Token::Semicolon {
+            self.next_token(); // Skip tokens until we reach a semicolon
+        }
 
         info!("END parse_return_statement");
         Ok(Box::new(return_statement))
@@ -571,16 +538,6 @@ impl<'a> Parser<'a> {
         debug!("ct: {:?} | pt: {:?}", self.current_token, self.peek_token);
     }
 
-    // fn expect_peek(&mut self, expected: Token) -> Result<(), ParseError> {
-    //     if self.peek_token != expected {
-    //         return Err(ParseError {
-    //             message: format!("Expected token: {}, got: {}", expected, self.peek_token),
-    //             token: self.peek_token.clone(),
-    //         });
-    //     }
-    //     self.next_token(); // Move past the expected token
-    //     Ok(())
-    // }
 }
 
 #[cfg(test)]
@@ -614,15 +571,15 @@ fn test_let_statements() {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
-    let statements = match program {
-        Node::Program { statements, .. } => statements,
+    let mut statements = match program {
+        Node::Program { statements, .. } => statements.into_iter(),
         _ => panic!("Expected a program node"),
     };
     dbg!(&statements);
     assert_eq!(errors.len(), 0);
     assert_eq!(statements.len(), 4);
     assert_eq!(
-        statements[0],
+        statements.next().expect("Expected first statement"),
         Node::Let {
             // Token::Let,
             name: Some(Box::new(Node::Identifier {
@@ -633,7 +590,7 @@ fn test_let_statements() {
     );
 
     assert_eq!(
-        statements[1],
+        statements.next().expect("Expected second statement"),
         Node::Let {
             // Token::Let,
             name: Some(Box::new(Node::Identifier {
@@ -643,7 +600,7 @@ fn test_let_statements() {
         }
     );
     assert_eq!(
-        statements[2],
+        statements.next().expect("Expected third statement"),
         Node::Let {
             // Token::Let,
             name: Some(Box::new(Node::Identifier {
@@ -653,7 +610,7 @@ fn test_let_statements() {
         }
     );
     assert_eq!(
-        statements[3],
+        statements.next().expect("Expected fourth statement"),
         Node::Let {
             // Token::Let,
             name: Some(Box::new(Node::Identifier {
@@ -669,6 +626,7 @@ fn test_let_statements() {
 }
 
 #[rstest]
+#[traced_test]
 fn test_broken_let_statements() {
     let input = "
         let x 5;
@@ -690,6 +648,7 @@ fn test_broken_let_statements() {
         _ => panic!("Expected a program node"),
     };
 
+    dbg!(&statements);
     assert_eq!(statements.len(), 3);
 
     let first_error = errors.next().unwrap();
@@ -711,652 +670,523 @@ fn test_broken_let_statements() {
     );
 }
 
-// #[rstest]
-// fn test_return_statements() {
-//     let input = "
-//         return 5;
-//         return 10;
-//         return 838383;
-//         ";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     errors.clone().into_iter().for_each(|e| {
-//         eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     let statements = match program {
-//         Node::Program { statements, .. } => statements,
-//         _ => panic!("Expected a program node"),
-//     };
-//     assert_eq!(statements.len(), 3);
-//     dbg!(&statements);
-//     let first_statement = statements.first();
-//     let first_statement = first_statement.expect("Expected at least one statement");
-//     let expected = Node::Return {
-//         return_value: Some(Box::new(Node::IntegerLiteral { value: 5 })),
-//     };
-//     assert_eq!(first_statement, &expected);
-// }
+#[rstest]
+#[traced_test]
+fn test_return_statements() {
+    let input = "
+        return 5;
+        return 10;
+        return 838383;
+        ";
 
-// #[rstest]
-// fn test_identifier_expression() {
-//     let input = "foobar;";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     errors.clone().into_iter().for_each(|e| {
-//         eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     });
-//
-//     assert_eq!(errors.len(), 0);
-//     assert_eq!(program.statements.len(), 1);
-//
-//     if let Some(let_statement) = program.statements.first() {
-//         if let StatementType::Let(let_stmt) = let_statement {
-//             match &let_stmt.value {
-//                 Some(ExpressionType::Identifier(ident)) => {
-//                     assert_eq!(ident.value, "foobar");
-//                 }
-//                 _ => {
-//                     panic!("Expected an expression in the let statement");
-//                 }
-//             }
-//         }
-//     }
-// }
-//
-// #[rstest]
-// fn test_integer_literal_expression() {
-//     let input = "5;";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     errors.clone().into_iter().for_each(|e| {
-//         eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     });
-//
-//     assert_eq!(errors.len(), 0);
-//     assert_eq!(program.statements.len(), 1);
-//
-//     if let Some(integer_literal) = program.statements.first() {
-//         if let StatementType::Expr(int_literal) = integer_literal {
-//             match int_literal {
-//                 Some(ExpressionType::IntegerLiteral(literal)) => {
-//                     assert_eq!(literal.value, 5);
-//                 }
-//                 _ => panic!("Expected an integer literal expression"),
-//             }
-//         }
-//     }
-// }
-//
-// #[rstest]
-// fn test_boolean_literal_expression() {
-//     let input = "true;";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     errors.clone().into_iter().for_each(|e| {
-//         eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     });
-//
-//     assert_eq!(errors.len(), 0);
-//     assert_eq!(program.statements.len(), 1);
-//
-//     if let Some(boolean_literal) = program.statements.first() {
-//         if let StatementType::Expr(bool_literal) = boolean_literal {
-//             match bool_literal {
-//                 Some(ExpressionType::BooleanLiteral(literal)) => {
-//                     assert_eq!(literal.value, true);
-//                 }
-//                 _ => panic!(
-//                     "Expected an boolean literal expression, got: {:?}",
-//                     bool_literal
-//                 ),
-//             }
-//         }
-//     }
-// }
-//
-// #[rstest]
-// #[case("!5;", "!", TestValue::Integer(5))]
-// #[case("-1;", "-", TestValue::Integer(1))]
-// #[case("!true;", "!", TestValue::Boolean(true))]
-// #[case("!false;", "!", TestValue::Boolean(false))]
-// fn test_parsing_prefix_expression(
-//     #[case] input: &str,
-//     #[case] operator: &str,
-//     #[case] value: TestValue,
-// ) {
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     errors.clone().into_iter().for_each(|e| {
-//         eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     });
-//
-//     assert_eq!(errors.len(), 0);
-//     assert_eq!(program.statements.len(), 1);
-//
-//     let mut statements = program.statements.iter();
-//
-//     let first_statement = statements.next();
-//
-//     let expr = match first_statement {
-//         Some(StatementType::Expr(expr)) => expr,
-//         _ => {
-//             panic!("Expected an expression statement");
-//         }
-//     };
-//     let expr = expr.as_ref().expect("Expected an expression statement");
-//
-//     let expr = match expr {
-//         ExpressionType::Statement(expr_stmt) => expr_stmt.as_ref(),
-//         _ => panic!("Expected an expression statement"),
-//     };
-//
-//     let prefix_expr = match expr {
-//         ExpressionType::Prefix(prefix_expr) => prefix_expr,
-//         _ => {
-//             panic!("Expected a prefix expression");
-//         }
-//     };
-//
-//     assert_eq!(prefix_expr.operator, operator);
-//
-//     let right_expr = prefix_expr.right.as_ref();
-//
-//     let expression_literal = match right_expr {
-//         Some(ExpressionType::IntegerLiteral(integer_literal)) => {
-//             TestValue::Integer(integer_literal.value)
-//         }
-//         Some(ExpressionType::BooleanLiteral(boolean_literal)) => {
-//             TestValue::Boolean(boolean_literal.value)
-//         }
-//         _ => {
-//             panic!("Expected an integer literal as the right expression");
-//         }
-//     };
-//     assert_eq!(expression_literal, value);
-// }
-//
-// #[rstest]
-// #[case("5 + 5;", TestValue::Integer(5), "+", TestValue::Integer(5))]
-// #[case("5 - 5;", TestValue::Integer(5), "-", TestValue::Integer(5))]
-// #[case("5 * 5;", TestValue::Integer(5), "*", TestValue::Integer(5))]
-// #[case("5 / 5;", TestValue::Integer(5), "/", TestValue::Integer(5))]
-// #[case("5 > 5;", TestValue::Integer(5), ">", TestValue::Integer(5))]
-// #[case("5 < 5;", TestValue::Integer(5), "<", TestValue::Integer(5))]
-// #[case("5 == 5;", TestValue::Integer(5), "==", TestValue::Integer(5))]
-// #[case("5 != 5;", TestValue::Integer(5), "!=", TestValue::Integer(5))]
-// #[case(
-//     "true == true;",
-//     TestValue::Boolean(true),
-//     "==",
-//     TestValue::Boolean(true)
-// )]
-// #[case(
-//     "true != false;",
-//     TestValue::Boolean(true),
-//     "!=",
-//     TestValue::Boolean(false)
-// )]
-// #[case(
-//     "false == false;",
-//     TestValue::Boolean(false),
-//     "==",
-//     TestValue::Boolean(false)
-// )]
-// fn test_infix_expression(
-//     #[case] input: &str,
-//     #[case] left_value: TestValue,
-//     #[case] operator: &str,
-//     #[case] right_value: TestValue,
-// ) {
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     // errors.clone().into_iter().for_each(|e| {
-//     //     eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     // });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     let mut statements = program.statements.iter();
-//
-//     let first_statement = statements.next();
-//
-//     let infix_expression = match first_statement {
-//         Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
-//             match expr.as_ref() {
-//                 // deref the Box here
-//                 ExpressionType::Infix(infix) => infix,
-//                 _ => panic!("Expected an infix expression"),
-//             }
-//         }
-//         _ => panic!("Expected an expression statement"),
-//     };
-//
-//     let infix_left_expr = match infix_expression.left.as_ref() {
-//         Some(left_expr) => match left_expr {
-//             ExpressionType::IntegerLiteral(integer_literal) => {
-//                 TestValue::Integer(integer_literal.value)
-//             }
-//             ExpressionType::BooleanLiteral(boolean_literal) => {
-//                 TestValue::Boolean(boolean_literal.value)
-//             }
-//             _ => {
-//                 panic!("Expected an integer or boolean literal as the left expression");
-//             }
-//         },
-//         None => {
-//             panic!("Expected a left expression in the infix expression");
-//         }
-//     };
-//     assert_eq!(infix_left_expr, left_value);
-//
-//     let infix_operator = infix_expression.operator.clone();
-//     assert_eq!(infix_operator, operator);
-//
-//     let infix_right_expr = match infix_expression.right.as_ref() {
-//         Some(right_expr) => match right_expr {
-//             ExpressionType::IntegerLiteral(integer_literal) => {
-//                 TestValue::Integer(integer_literal.value)
-//             }
-//             ExpressionType::BooleanLiteral(boolean_literal) => {
-//                 TestValue::Boolean(boolean_literal.value)
-//             }
-//             _ => {
-//                 panic!("Expected an integer or boolean literal as the right expression");
-//             }
-//         },
-//         None => {
-//             panic!("Expected a right expression in the infix expression");
-//         }
-//     };
-//     assert_eq!(infix_right_expr, right_value);
-// }
-//
-// #[traced_test]
-// #[rstest]
-// #[case("true", "true")]
-// #[case("false", "false")]
-// #[case("3 > 5 == false", "((3 > 5) == false)")]
-// #[case("3 < 5 == true", "((3 < 5) == true)")]
-// #[case("-a * b", "((-a) * b)")]
-// #[case("!-a", "(!(-a))")]
-// #[case("a + b + c", "((a + b) + c)")]
-// #[case("a + b - c", "((a + b) - c)")]
-// #[case("a * b * c", "((a * b) * c)")]
-// #[case("a * b / c", "((a * b) / c)")]
-// #[case("a + b / c", "(a + (b / c))")]
-// #[case("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)")]
-// #[case("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)")]
-// #[case("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))")]
-// #[case("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))")]
-// #[case("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))")]
-// #[case("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)")]
-// #[case("(5 + 5) * 2", "((5 + 5) * 2)")]
-// #[case("2 / (5 + 5)", "(2 / (5 + 5))")]
-// #[case("-(5 + 5)", "(-(5 + 5))")]
-// #[case("!(true == true)", "(!(true == true))")]
-// #[case("(a + add(b * c)) + d", "((a + add((b * c))) + d)")]
-// #[case(
-//     "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
-//     "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"
-// )]
-// #[case("add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))")]
-// fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output: &str) {
-//     use crate::ast::traits::Node;
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     errors.clone().into_iter().for_each(|e| {
-//         eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     // dbg!(&program);
-//
-//     assert_eq!(program.string(), expected_output);
-// }
-//
-// #[traced_test]
-// #[rstest]
-// fn test_if_expresssion() {
-//     let input = "if (x < y) { x }";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     // errors.clone().into_iter().for_each(|e| {
-//     //     eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     // });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     let mut statements = program.statements.iter();
-//     let first_statement = statements.next();
-//
-//     dbg!(&first_statement);
-//
-//     let if_expression = match first_statement {
-//         Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
-//             match expr.as_ref() {
-//                 // deref the Box here
-//                 ExpressionType::If(if_expr) => if_expr,
-//                 _ => panic!("Expected an if expression, got {:?}", expr),
-//             }
-//         }
-//         _ => panic!(
-//             "Expected an expression statement, got {:?}",
-//             first_statement
-//         ),
-//     };
-//
-//     let _infix_expr = match if_expression.condition.as_ref() {
-//         Some(ExpressionType::Statement(expr)) => match expr.as_ref() {
-//             ExpressionType::Infix(infix) => {
-//                 match infix.left.as_ref() {
-//                     Some(ExpressionType::Identifier(ident)) => {
-//                         assert_eq!(ident.value, "x");
-//                     }
-//                     _ => panic!("Expected an identifier as the left expression"),
-//                 }
-//                 match infix.right.as_ref() {
-//                     Some(ExpressionType::Identifier(ident)) => {
-//                         assert_eq!(ident.value, "y");
-//                     }
-//                     _ => panic!("Expected an identifier as the right expression"),
-//                 }
-//                 assert_eq!(infix.operator, "<");
-//                 infix
-//             }
-//             _ => panic!(
-//                 "Expected an infix expression as the condition, got {:?}",
-//                 expr
-//             ),
-//         },
-//
-//         _ => panic!(
-//             "Expected an infix expression as the condition, got {:?}",
-//             if_expression.condition
-//         ),
-//     };
-//
-//     let block_statement = &if_expression.consequence;
-//
-//     let statements = &block_statement.statements;
-//     assert_eq!(statements.len(), 1);
-//
-//     let first_statement = statements
-//         .first()
-//         .expect("Expected a statement in the block");
-//
-//     match first_statement {
-//         StatementType::Expr(Some(ExpressionType::Identifier(ident))) => {
-//             assert_eq!(ident.value, "x");
-//         }
-//         _ => panic!("Expected an identifier expression in the block statement"),
-//     }
-// }
-//
-// #[traced_test]
-// #[rstest]
-// fn test_if_else_expresssion() {
-//     let input = "if (x < y) { x } else { y }";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     // errors.clone().into_iter().for_each(|e| {
-//     //     eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     // });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     let mut statements = program.statements.iter();
-//     let first_statement = statements.next();
-//
-//     dbg!(&first_statement);
-//
-//     let if_expression = match first_statement {
-//         Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
-//             match expr.as_ref() {
-//                 // deref the Box here
-//                 ExpressionType::If(if_expr) => if_expr,
-//                 _ => panic!("Expected an if expression, got {:?}", expr),
-//             }
-//         }
-//         _ => panic!(
-//             "Expected an expression statement, got {:?}",
-//             first_statement
-//         ),
-//     };
-//
-//     let _infix_expr = match if_expression.condition.as_ref() {
-//         Some(ExpressionType::Statement(expr)) => match expr.as_ref() {
-//             ExpressionType::Infix(infix) => {
-//                 match infix.left.as_ref() {
-//                     Some(ExpressionType::Identifier(ident)) => {
-//                         assert_eq!(ident.value, "x");
-//                     }
-//                     _ => panic!("Expected an identifier as the left expression"),
-//                 }
-//                 match infix.right.as_ref() {
-//                     Some(ExpressionType::Identifier(ident)) => {
-//                         assert_eq!(ident.value, "y");
-//                     }
-//                     _ => panic!("Expected an identifier as the right expression"),
-//                 }
-//                 assert_eq!(infix.operator, "<");
-//                 infix
-//             }
-//             _ => panic!(
-//                 "Expected an infix expression as the condition, got {:?}",
-//                 expr
-//             ),
-//         },
-//
-//         _ => panic!(
-//             "Expected an infix expression as the condition, got {:?}",
-//             if_expression.condition
-//         ),
-//     };
-//
-//     let block_statement = &if_expression.consequence;
-//
-//     let statements = &block_statement.statements;
-//     assert_eq!(statements.len(), 1);
-//
-//     let first_statement = statements
-//         .first()
-//         .expect("Expected a statement in the block");
-//
-//     match first_statement {
-//         StatementType::Expr(Some(ExpressionType::Identifier(ident))) => {
-//             assert_eq!(ident.value, "x");
-//         }
-//         _ => panic!("Expected an identifier expression in the block statement"),
-//     }
-//
-//     let alternative_block = if_expression
-//         .alternative
-//         .as_ref()
-//         .expect("Expected an alternative block");
-//
-//     let alternative_statements = &alternative_block.statements;
-//
-//     assert_eq!(alternative_statements.len(), 1);
-//
-//     let alternative_first_statement = alternative_statements
-//         .first()
-//         .expect("Expected a statement in the alternative block");
-//
-//     match alternative_first_statement {
-//         StatementType::Expr(Some(ExpressionType::Identifier(ident))) => {
-//             assert_eq!(ident.value, "y");
-//         }
-//         _ => panic!("Expected an identifier expression in the alternative block statement"),
-//     }
-// }
-//
-// #[traced_test]
-// #[rstest]
-// #[case("fn(x,y) { x + y; }", vec!["x","y"])]
-// #[case("fn() {}", vec![])]
-// #[case("fn(x) {}", vec!["x"])]
-// #[case("fn(x,y,z) {}", vec!["x","y", "z"])]
-// fn test_parse_function_literal(#[case] input: &str, #[case] expected_params: Vec<&str>) {
-//     use crate::ast::traits::Node;
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     // errors.clone().into_iter().for_each(|e| {
-//     //     eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     // });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     let mut statements = program.statements.iter();
-//     let first_statement = statements.next();
-//
-//     dbg!(&first_statement);
-//
-//     let function_literal = match first_statement {
-//         Some(StatementType::Expr(Some(ExpressionType::Function(fn_literal)))) => fn_literal,
-//         _ => panic!("Expected an function literal, got {:?}", first_statement),
-//     };
-//
-//     let params = function_literal.parameters.iter();
-//
-//     assert_eq!(params.len(), expected_params.len());
-//
-//     let expected_params = expected_params.join(", ");
-//     let params_joined = function_literal
-//         .parameters
-//         .clone()
-//         .into_iter()
-//         .map(|p| p.token_literal())
-//         .collect::<Vec<String>>()
-//         .join(", ");
-//
-//     assert_eq!(params_joined, expected_params);
-//
-//     let mut statements = function_literal.body.statements.iter();
-//
-//     let body_statement = statements.next();
-//
-//     dbg!(&body_statement);
-//
-//     match body_statement {
-//         Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => match expr.as_ref() {
-//             ExpressionType::Infix(infix) => {
-//                 match infix.left.as_ref() {
-//                     Some(ExpressionType::Identifier(ident)) => {
-//                         assert_eq!(ident.value, "x");
-//                     }
-//                     _ => panic!("Expected an identifier as the left expression"),
-//                 }
-//                 match infix.right.as_ref() {
-//                     Some(ExpressionType::Identifier(ident)) => {
-//                         assert_eq!(ident.value, "y");
-//                     }
-//                     _ => panic!("Expected an identifier as the right expression"),
-//                 }
-//                 assert_eq!(infix.operator, "+");
-//             }
-//             _ => {}
-//         },
-//         _ => {}
-//     }
-// }
-//
-// #[traced_test]
-// #[rstest]
-// fn test_call_expresssion() {
-//     let input = "add(1, 2 * 3, 4 + 5)";
-//
-//     let mut lexer = Lexer::new(input);
-//     let mut parser = Parser::new(&mut lexer);
-//     let program = parser.parse_program();
-//
-//     let errors = parser.errors.into_iter();
-//
-//     // errors.clone().into_iter().for_each(|e| {
-//     //     eprintln!("Error: {} at token {:?}", e.message, e.token);
-//     // });
-//
-//     assert_eq!(errors.len(), 0);
-//
-//     let mut statements = program.statements.iter();
-//     let first_statement = statements.next();
-//
-//     dbg!(&first_statement);
-//
-//     let call_expression = match first_statement {
-//         Some(StatementType::Expr(Some(ExpressionType::Statement(expr)))) => {
-//             match expr.as_ref() {
-//                 // deref the Box here
-//                 ExpressionType::Call(call_expr) => call_expr,
-//                 _ => panic!("Expected an call expression, got {:?}", expr),
-//             }
-//         }
-//         _ => panic!(
-//             "Expected an expression statement, got {:?}",
-//             first_statement
-//         ),
-//     };
-//
-//     assert_eq!(call_expression.token.to_literal(), "(");
-//     assert_eq!(call_expression.arguments.len(), 3);
-//
-//     let function_expr = call_expression.function.as_ref();
-//
-//     match function_expr {
-//         ExpressionType::Identifier(ident) => {
-//             assert_eq!(&ident.value, "add");
-//         }
-//         _ => panic!("Expected identifier, got {:?}", function_expr),
-//     };
-// }
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+    dbg!(&statements);
+    assert_eq!(statements.len(), 3);
+    assert_eq!(
+        statements.first().expect("Expected at least one statement"),
+        &Node::Return {
+            return_value: Some(Box::new(Node::IntegerLiteral { value: 5 })),
+        }
+    );
+}
+
+#[rstest]
+fn test_identifier_expression() {
+    let input = "foobar;";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+    assert_eq!(statements.len(), 1);
+
+    assert_eq!(
+        statements.first().expect("Expected at least one statement"),
+        &Node::ExprStmt {
+            expression: Some(Box::new(Node::Identifier {
+                name: "foobar".to_string()
+            }))
+        }
+    );
+}
+
+#[rstest]
+fn test_integer_literal_expression() {
+    let input = "5;";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+    assert_eq!(statements.len(), 1);
+
+    assert_eq!(
+        statements.first().expect("Expected at least one statement"),
+        &Node::ExprStmt {
+            expression: Some(Box::new(Node::IntegerLiteral { value: 5 }))
+        }
+    );
+}
+
+#[rstest]
+fn test_boolean_literal_expression() {
+    let input = "true;";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+    assert_eq!(statements.len(), 1);
+
+    assert_eq!(
+        statements.first().expect("Expected at least one statement"),
+        &Node::ExprStmt {
+            expression: Some(Box::new(Node::BooleanLiteral { value: true }))
+        }
+    );
+}
+
+#[rstest]
+#[case("!5;", "!", TestValue::Integer(5))]
+#[case("-1;", "-", TestValue::Integer(1))]
+#[case("!true;", "!", TestValue::Boolean(true))]
+#[case("!false;", "!", TestValue::Boolean(false))]
+fn test_parsing_prefix_expression(
+    #[case] input: &str,
+    #[case] operator: &str,
+    #[case] value: TestValue,
+) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+    assert_eq!(statements.len(), 1);
+
+    let test_value = match value {
+        TestValue::Integer(i) => Node::IntegerLiteral { value: i },
+        TestValue::Boolean(b) => Node::BooleanLiteral { value: b },
+    };
+
+    let operator = operator.to_string();
+
+    assert_eq!(
+        statements.first().expect("Expected at least one statement"),
+        &Node::ExprStmt {
+            expression: Some(Box::new(Node::Prefix {
+                operator: operator,
+                right: Some(Box::new(test_value))
+            }))
+        }
+    );
+}
+
+#[rstest]
+#[case("5 + 5;", TestValue::Integer(5), "+", TestValue::Integer(5))]
+#[case("5 - 5;", TestValue::Integer(5), "-", TestValue::Integer(5))]
+#[case("5 * 5;", TestValue::Integer(5), "*", TestValue::Integer(5))]
+#[case("5 / 5;", TestValue::Integer(5), "/", TestValue::Integer(5))]
+#[case("5 > 5;", TestValue::Integer(5), ">", TestValue::Integer(5))]
+#[case("5 < 5;", TestValue::Integer(5), "<", TestValue::Integer(5))]
+#[case("5 == 5;", TestValue::Integer(5), "==", TestValue::Integer(5))]
+#[case("5 != 5;", TestValue::Integer(5), "!=", TestValue::Integer(5))]
+#[case(
+    "true == true;",
+    TestValue::Boolean(true),
+    "==",
+    TestValue::Boolean(true)
+)]
+#[case(
+    "true != false;",
+    TestValue::Boolean(true),
+    "!=",
+    TestValue::Boolean(false)
+)]
+#[case(
+    "false == false;",
+    TestValue::Boolean(false),
+    "==",
+    TestValue::Boolean(false)
+)]
+fn test_infix_expression(
+    #[case] input: &str,
+    #[case] left_value: TestValue,
+    #[case] operator: &str,
+    #[case] right_value: TestValue,
+) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+
+    let left_value = match left_value {
+        TestValue::Integer(i) => Node::IntegerLiteral { value: i },
+        TestValue::Boolean(b) => Node::BooleanLiteral { value: b },
+    };
+    let right_value = match right_value {
+        TestValue::Integer(i) => Node::IntegerLiteral { value: i },
+        TestValue::Boolean(b) => Node::BooleanLiteral { value: b },
+    };
+
+    assert_eq!(
+        statements.first(),
+        Some(&Node::ExprStmt {
+            expression: Some(Box::new(Node::Infix {
+                left: Some(Box::new(left_value)),
+                operator: operator.to_string(),
+                right: Some(Box::new(right_value)),
+            })),
+        })
+    );
+}
+
+#[traced_test]
+#[rstest]
+#[case("true", "true")]
+#[case("false", "false")]
+#[case("3 > 5 == false", "((3 > 5) == false)")]
+#[case("3 < 5 == true", "((3 < 5) == true)")]
+#[case("-a * b", "((-a) * b)")]
+#[case("!-a", "(!(-a))")]
+#[case("a + b + c", "((a + b) + c)")]
+#[case("a + b - c", "((a + b) - c)")]
+#[case("a * b * c", "((a * b) * c)")]
+#[case("a * b / c", "((a * b) / c)")]
+#[case("a + b / c", "(a + (b / c))")]
+#[case("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)")]
+#[case("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)")]
+#[case("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))")]
+#[case("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))")]
+#[case("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))")]
+#[case("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)")]
+#[case("(5 + 5) * 2", "((5 + 5) * 2)")]
+#[case("2 / (5 + 5)", "(2 / (5 + 5))")]
+#[case("-(5 + 5)", "(-(5 + 5))")]
+#[case("!(true == true)", "(!(true == true))")]
+#[case("(a + add(b * c)) + d", "((a + add((b * c))) + d)")]
+#[case(
+    "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+    "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"
+)]
+#[case("add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))")]
+fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output: &str) {
+    use crate::ast::traits::Node;
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    errors.clone().into_iter().for_each(|e| {
+        eprintln!("Error: {} at token {:?}", e.message, e.token);
+    });
+
+    assert_eq!(errors.len(), 0);
+
+    // dbg!(&program);
+
+    assert_eq!(program.string(), expected_output);
+}
+
+#[traced_test]
+#[rstest]
+fn test_if_expresssion() {
+    let input = "if (x < y) { x }";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+
+    assert_eq!(
+        statements.first(),
+        Some(&Node::ExprStmt {
+            expression: Some(Box::new(Node::If {
+                condition: Some(Box::new(Node::Infix {
+                    left: Some(Box::new(Node::Identifier {
+                        name: "x".to_string()
+                    })),
+                    operator: "<".to_string(),
+                    right: Some(Box::new(Node::Identifier {
+                        name: "y".to_string()
+                    })),
+                })),
+                consequence: Some(Box::new(Node::Block {
+                    statements: vec![Node::ExprStmt {
+                        expression: Some(Box::new(Node::Identifier {
+                            name: "x".to_string()
+                        })),
+                    }],
+                })),
+                alternative: None,
+            })),
+        })
+    );
+}
+
+#[traced_test]
+#[rstest]
+fn test_if_else_expresssion() {
+    let input = "if (x < y) { x } else { y }";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+
+    assert_eq!(
+        statements.first(),
+        Some(&Node::ExprStmt {
+            expression: Some(Box::new(Node::If {
+                condition: Some(Box::new(Node::Infix {
+                    left: Some(Box::new(Node::Identifier {
+                        name: "x".to_string()
+                    })),
+                    operator: "<".to_string(),
+                    right: Some(Box::new(Node::Identifier {
+                        name: "y".to_string()
+                    })),
+                })),
+                consequence: Some(Box::new(Node::Block {
+                    statements: vec![Node::ExprStmt {
+                        expression: Some(Box::new(Node::Identifier {
+                            name: "x".to_string()
+                        })),
+                    }],
+                })),
+                alternative: Some(Box::new(Node::Block {
+                    statements: vec![Node::ExprStmt {
+                        expression: Some(Box::new(Node::Identifier {
+                            name: "y".to_string()
+                        })),
+                    }],
+                })),
+            })),
+        })
+    );
+}
+
+#[traced_test]
+#[rstest]
+#[case("fn(x,y) { x + y; }", vec!["x","y"])]
+#[case("fn() {}", vec![])]
+#[case("fn(x) {}", vec!["x"])]
+#[case("fn(x,y,z) {}", vec!["x","y", "z"])]
+fn test_parse_function_literal(#[case] input: &str, #[case] expected_params: Vec<&str>) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let mut statements = match program {
+        Node::Program { statements, .. } => statements.into_iter(),
+        _ => panic!("Expected a program node"),
+    };
+    let first_statement = statements.next();
+
+    dbg!(&first_statement);
+
+    let function_literal = match first_statement {
+        Some(Node::ExprStmt {
+            expression: Some(fn_literal),
+        }) => fn_literal,
+        _ => panic!("Expected an function literal, got {:?}", first_statement),
+    };
+
+    let (params, body_statement) = match function_literal.as_ref() {
+        Node::Function { parameters, body } => (parameters, body),
+        _ => panic!("Expected a function literal, got {:?}", function_literal),
+    };
+
+    assert_eq!(params.len(), expected_params.len());
+
+    let expected_params = expected_params.join(", ");
+    let params_joined = params
+        .into_iter()
+        .map(|p| p.token_literal())
+        .collect::<Vec<String>>()
+        .join(", ");
+
+    assert_eq!(params_joined, expected_params);
+
+    let body_statements = body_statement.as_ref().map(|b| match b.as_ref() {
+        Node::Block { statements } => Some(statements),
+        _ => None,
+    });
+
+    if body_statements.is_some() {
+        let body_statements = body_statements.flatten();
+        match body_statements {
+            Some(statements) => {
+                if !statements.is_empty() {
+                    assert_eq!(
+                        statements.first(),
+                        Some(&Node::ExprStmt {
+                            expression: Some(Box::new(Node::Infix {
+                                left: Some(Box::new(Node::Identifier {
+                                    name: "x".to_string()
+                                })),
+                                operator: "+".to_string(),
+                                right: Some(Box::new(Node::Identifier {
+                                    name: "y".to_string()
+                                })),
+                            }))
+                        })
+                    );
+                }
+            }
+            None => panic!("Expected a block statement in function body"),
+        }
+    } else {
+        panic!("Expected a block statement in function body");
+    }
+}
+
+#[traced_test]
+#[rstest]
+fn test_call_expresssion() {
+    let input = "add(1, 2 * 3, 4 + 5)";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    // errors.clone().into_iter().for_each(|e| {
+    //     eprintln!("Error: {} at token {:?}", e.message, e.token);
+    // });
+
+    assert_eq!(errors.len(), 0);
+
+    let statements = match program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+
+    assert_eq!(
+        statements.first(),
+        Some(&Node::ExprStmt {
+            expression: Some(Box::new(Node::Call {
+                function: Some(Box::new(Node::Identifier {
+                    name: "add".to_string(),
+                })),
+                arguments: vec![
+                    Node::IntegerLiteral { value: 1 },
+                    Node::Infix {
+                        left: Some(Box::new(Node::IntegerLiteral { value: 2 })),
+                        operator: "*".to_string(),
+                        right: Some(Box::new(Node::IntegerLiteral { value: 3 })),
+                    },
+                    Node::Infix {
+                        left: Some(Box::new(Node::IntegerLiteral { value: 4 })),
+                        operator: "+".to_string(),
+                        right: Some(Box::new(Node::IntegerLiteral { value: 5 })),
+                    },
+                ],
+            }))
+        })
+    );
+}
