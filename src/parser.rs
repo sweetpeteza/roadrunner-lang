@@ -11,9 +11,9 @@ use crate::ast::expression_types::ExpressionType;
 use crate::ast::function_literal::FunctionLiteral;
 use crate::ast::if_expression::IfExpression;
 use crate::ast::infix_expression::InfixExpression;
+use crate::ast::node::{Expression, Node, Statement};
 use crate::ast::precedence::Precedence;
 use crate::ast::prefix_expression::PrefixExpression;
-use crate::ast::traits::Node;
 use crate::{
     ast::{
         identifier::Identifier, integer_literal::IntegerLiteral, let_statement::LetStatement,
@@ -51,13 +51,17 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    pub fn parse_program(&mut self) -> Program {
-        let mut program = Program::new();
+    // pub fn parse_program(&mut self) -> Program {
+    //     let mut program = Program::new();
+    pub fn parse_program(&mut self) -> crate::ast::node::Program {
+        info!("BEGIN parse_program");
+        let mut statements = vec![];
 
         while self.current_token != Token::Eof {
             match self.parse_statement() {
                 Some(Ok(statement)) => {
-                    program.statements.push(statement);
+                    //                    program.statements.push(statement);
+                    statements.push(statement);
                 }
                 Some(Err(e)) => {
                     self.errors.push(e); // Collect errors
@@ -66,14 +70,16 @@ impl<'a> Parser<'a> {
             }
             self.next_token(); // Move to the next token
         }
-        program
+        //        program
+        Node::program(statements)
     }
 
-    fn parse_expression_statement(&mut self) -> Result<StatementType, ParseError> {
+    // fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
+    fn parse_expression_statement(&mut self) -> Result<Statement, ParseError> {
         info!("BEGIN parse_expression_statement");
         let expression = self.parse_expression(Precedence::Lowest);
 
-        let statement = StatementType::Expr(expression);
+        let statement = Node::expr_stmt(expression);
 
         if self.peek_token == Token::Semicolon {
             self.next_token(); // Consume the semicolon
@@ -83,7 +89,8 @@ impl<'a> Parser<'a> {
         Ok(statement)
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
+    // fn parse_expression(&mut self, precedence: Precedence) -> Option<ExpressionType> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<Expression>> {
         use crate::token::Token::*;
         info!("BEGIN parse_expression with precedence: {:?}", precedence);
 
@@ -126,7 +133,8 @@ impl<'a> Parser<'a> {
         left_expression
     }
 
-    fn parse_infix_expression(&mut self, left: ExpressionType) -> Option<ExpressionType> {
+    // fn parse_infix_expression(&mut self, left: ExpressionType) -> Option<ExpressionType> {
+    fn parse_infix_expression(&mut self, left: Option<Box<Expression>>) -> Option<Box<Expression>> {
         info!("BEGIN parse_infix_expression");
         let current_token = self.current_token.clone();
         let operator = current_token.to_literal();
@@ -142,32 +150,35 @@ impl<'a> Parser<'a> {
                 token: self.current_token.clone(),
             });
 
-            return Some(left);
+            return left;
         }
 
         info!("END parse_infix_expression");
-        Some(ExpressionType::Statement(Box::new(ExpressionType::Infix(
-            InfixExpression::new(
-                current_token,
-                Box::new(Some(left)),
-                operator,
-                Box::new(right),
-            ),
-        ))))
+        Some(Box::new(Node::infix(left, operator, right)))
+
+        // Some(ExpressionType::Statement(Box::new(ExpressionType::Infix(
+        //     InfixExpression::new(
+        //         current_token,
+        //         Box::new(Some(left)),
+        //         operator,
+        //         Box::new(right),
+        //     ),
+        // ))))
     }
 
-    fn parse_call_expression(&mut self, function: ExpressionType) -> Option<ExpressionType> {
+    fn parse_call_expression(
+        &mut self,
+        function: Option<Box<Expression>>,
+    ) -> Option<Box<Expression>> {
         info!("BEGIN parse_call_expression");
         let token = self.peek_token.clone();
         let args = self.parse_call_arguments();
 
         info!("END parse_call_expression");
-        Some(ExpressionType::Statement(Box::new(ExpressionType::Call(
-            CallExpression::new(token, Box::new(function), args),
-        ))))
+        Some(Box::new(Node::call(function, args)))
     }
 
-    fn parse_call_arguments(&mut self) -> Vec<ExpressionType> {
+    fn parse_call_arguments(&mut self) -> Vec<Expression> {
         info!("BEGIN parse_call_arguments");
         let mut args = Vec::new();
 
@@ -181,14 +192,14 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         if let Some(e) = self.parse_expression(Precedence::Lowest) {
-            args.push(e);
+            args.push(*e);
         }
 
         while self.peek_token == Token::Comma {
             self.next_token();
             self.next_token();
             if let Some(e) = self.parse_expression(Precedence::Lowest) {
-                args.push(e);
+                args.push(*e);
             }
         }
 
@@ -203,7 +214,7 @@ impl<'a> Parser<'a> {
         args
     }
 
-    fn parse_if_expression(&mut self) -> Option<ExpressionType> {
+    fn parse_if_expression(&mut self) -> Option<Box<Expression>> {
         info!("BEGIN parse_if_expression");
         // first token is if
         let if_token = self.current_token.clone();
@@ -214,7 +225,7 @@ impl<'a> Parser<'a> {
 
         self.next_token(); // Consume the 'if' token
 
-        let expression = self.parse_expression(Precedence::Lowest);
+        let condition = self.parse_expression(Precedence::Lowest);
 
         // TODO combine this if check with next_token in expect_peek fn
         if self.current_token != Token::Rparen {
@@ -244,12 +255,13 @@ impl<'a> Parser<'a> {
         };
 
         info!("END parse_if_expression");
-        Some(ExpressionType::Statement(Box::new(ExpressionType::If(
-            IfExpression::new(if_token, Box::new(expression), consequence, alternative),
-        ))))
+        Some(Box::new(Node::if_expr(condition, consequence, alternative)))
+    //     Some(ExpressionType::Statement(Box::new(ExpressionType::If(
+    //         IfExpression::new(if_token, Box::new(expression), consequence, alternative),
+    //     ))))
     }
 
-    fn parse_function_literal(&mut self) -> Option<ExpressionType> {
+    fn parse_function_literal(&mut self) -> Option<Box<Expression>> {
         info!("BEGIN parse_function_literal");
         let token = self.current_token.clone();
 
@@ -260,19 +272,21 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let parameters = self.parse_fn_params();
+        let parameters:Vec<Expression> = self.parse_fn_params();
 
         if self.peek_token != Token::Lbrace {
             info!("END parse_function_literal - did not find l brace");
-            let empty_body = BlockStatement {
-                token: self.current_token.clone(),
-                statements: vec![],
-            };
-            return Some(ExpressionType::Function(FunctionLiteral {
-                token,
+            let empty_body = Node::block(vec![]); 
+            return Some(Box::new(Node::function(
+                // token,
                 parameters,
-                body: empty_body,
-            }));
+                None,
+            )));
+            // return Some(ExpressionType::Function(FunctionLiteral {
+            //     token,
+            //     parameters,
+            //     body: empty_body,
+            // }));
         }
 
         self.next_token(); // consume l brace
@@ -280,14 +294,19 @@ impl<'a> Parser<'a> {
         let body = self.parse_block_statement();
 
         info!("END parse_function_literal");
-        Some(ExpressionType::Function(FunctionLiteral {
-            token,
+        Some(Box::new(Node::function(
+            // token,
             parameters,
             body,
-        }))
+        )))
+        // Some(ExpressionType::Function(FunctionLiteral {
+        //     token,
+        //     parameters,
+        //     body,
+        // }))
     }
 
-    fn parse_fn_params(&mut self) -> Vec<Identifier> {
+    fn parse_fn_params(&mut self) -> Vec<Expression> {
         info!("BEGIN parse_fn_params");
 
         self.next_token(); // consume l paren
@@ -300,15 +319,17 @@ impl<'a> Parser<'a> {
             return params;
         }
 
-        let ident = Identifier::new(self.current_token.clone().to_literal());
+        // let ident = Identifier::new(self.current_token.clone().to_literal());
 
-        params.push(ident);
+        // params.push(ident);
+        params.push(Node::identifier(self.current_token.clone().to_literal()));
 
         while self.peek_token == Token::Comma {
             self.next_token(); // consume comma
             self.next_token(); // consume param
 
-            params.push(Identifier::new(self.current_token.clone().to_literal()));
+            // params.push(Identifier::new(self.current_token.clone().to_literal()));
+            params.push(Node::identifier(self.current_token.clone().to_literal()));
         }
 
         self.next_token(); // consume last param
@@ -322,16 +343,18 @@ impl<'a> Parser<'a> {
         params
     }
 
-    fn parse_block_statement(&mut self) -> BlockStatement {
+    fn parse_block_statement(&mut self) -> Option<Box<Statement>> {
         info!("BEGIN parse_block_statement");
-        let mut block = BlockStatement::new(self.current_token.clone());
+        // let mut block = BlockStatement::new(self.current_token.clone());
+        let mut statements = Vec::new();
 
         self.next_token(); // Consume the opening brace
 
         while self.current_token != Token::Rbrace && self.current_token != Token::Eof {
             if let Some(statement) = self.parse_statement() {
                 match statement {
-                    Ok(stmt) => block.statements.push(stmt),
+                    // Ok(stmt) => block.statements.push(stmt),
+                    Ok(stmt) => statements.push(stmt),
                     Err(e) => {
                         error!("Error parsing block statement: {:?}", e);
                         self.errors.push(e);
@@ -342,7 +365,8 @@ impl<'a> Parser<'a> {
         }
 
         info!("END parse_block_statement");
-        block
+        // block
+        Some(Box::new(Node::block(statements)))
     }
 
     fn get_precedence(&self, token: &Token) -> Precedence {
@@ -357,7 +381,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<ExpressionType> {
+    fn parse_prefix_expression(&mut self) -> Option<Box<Expression>> {
         info!("BEGIN parse_prefix_expression");
         match self.current_token {
             Token::Bang | Token::Minus => {
@@ -372,18 +396,28 @@ impl<'a> Parser<'a> {
                     });
                 }
                 info!("END parse_prefix_expression");
-                Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
-                    PrefixExpression::new(current_token, operator, Box::new(right)),
-                ))))
+                Some(Box::new(Node::prefix(
+                    // current_token,
+                    operator,
+                    right,
+                )))
+                // Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
+                //     PrefixExpression::new(current_token, operator, Box::new(right)),
+                // ))))
             }
             Token::Lbrace => {
                 let current_token = self.current_token.clone();
                 let operator = current_token.to_literal();
                 let expression = self.parse_grouped_expression();
 
-                Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
-                    PrefixExpression::new(current_token, operator, Box::new(expression)),
-                ))))
+                Some (Box::new(Node::prefix(
+                    // current_token,
+                    operator,
+                    expression,
+                )))
+                // Some(ExpressionType::Statement(Box::new(ExpressionType::Prefix(
+                //     PrefixExpression::new(current_token, operator, Box::new(expression)),
+                // ))))
             }
             _ => {
                 info!("END parse_prefix_expression");
@@ -392,7 +426,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_grouped_expression(&mut self) -> Option<ExpressionType> {
+    fn parse_grouped_expression(&mut self) -> Option<Box<Expression>> {
         info!("BEGIN parse_grouped_expression");
 
         self.next_token(); // Consume the opening parenthesis
@@ -409,25 +443,27 @@ impl<'a> Parser<'a> {
         expression
     }
 
-    fn parse_identifier(&mut self) -> Option<ExpressionType> {
+    fn parse_identifier(&mut self) -> Option<Box<Expression>> {
         info!("BEGIN parse_identifier");
         if let Token::Ident(ref ident) = self.current_token {
             info!("END parse_identifier");
-            Some(ExpressionType::Identifier(Identifier::new(ident.clone())))
+            Some(Box::new(Node::identifier(ident.clone())))
+            // Some(ExpressionType::Identifier(Identifier::new(ident.clone())))
         } else {
             info!("END parse_identifier - not id");
             None
         }
     }
 
-    fn parse_integer_literal(&mut self) -> Option<ExpressionType> {
+    fn parse_integer_literal(&mut self) -> Option<Box<Expression>> {
         info!("BEGIN parse_integer_literal");
         if let Token::Int(ref value) = self.current_token {
             info!("END parse_integer_literal");
-            Some(ExpressionType::IntegerLiteral(IntegerLiteral::new(
-                self.current_token.clone(),
-                value.clone(),
-            )))
+            Some(Box::new(Node::integer_literal(value.clone())))
+            // Some(ExpressionType::IntegerLiteral(IntegerLiteral::new(
+            //     self.current_token.clone(),
+            //     value.clone(),
+            // )))
         } else {
             info!(
                 "END parse_integer_literal - not int, {:?}",
@@ -454,7 +490,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_statement(&mut self) -> Option<Result<StatementType, ParseError>> {
+    fn parse_statement(&mut self) -> Option<Result<Statement, ParseError>> {
         info!("BEGIN parse_statement");
         let statement = match self.current_token {
             Token::Let => Some(self.parse_let_statement()),
