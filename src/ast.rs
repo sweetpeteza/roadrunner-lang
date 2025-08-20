@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 #[derive(Debug, PartialEq)]
 pub enum Node {
     // Program variants
@@ -59,13 +57,11 @@ pub enum Node {
 impl Node {
     pub fn string(&self) -> String {
         match self {
-            Node::Program { statements } => {
-                statements
-                    .iter()
-                    .map(|s| s.string())
-                    .collect::<Vec<String>>()
-                    .join("")
-            }
+            Node::Program { statements } => statements
+                .iter()
+                .map(|s| s.string())
+                .collect::<Vec<String>>()
+                .join(""),
             Node::IntegerLiteral { value } => value.to_string(),
             Node::Identifier { name } => name.clone(),
             Node::Prefix { operator, right } => {
@@ -141,13 +137,11 @@ impl Node {
             Node::ExprStmt { expression } => {
                 expression.as_ref().map_or("".to_string(), |e| e.string())
             }
-            Node::Block { statements } => {
-                statements
-                    .iter()
-                    .map(|s| s.string())
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            }
+            Node::Block { statements } => statements
+                .iter()
+                .map(|s| s.string())
+                .collect::<Vec<String>>()
+                .join("\n"),
         }
     }
 
@@ -159,4 +153,15 @@ impl Node {
             _ => "".to_string(),
         }
     }
+}
+
+#[derive(PartialEq, PartialOrd, Debug)]
+pub enum Precedence {
+    Lowest = 0,
+    Equals,      // ==
+    LessGreater, // > or <
+    Sum,         // +
+    Product,     // *
+    Prefix,      // -X or !X
+    Call,        // myFunction(X)
 }

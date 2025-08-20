@@ -1,6 +1,6 @@
 use rstest::rstest;
 
-use crate::token::{lookup_ident, Token};
+use crate::token::{Token, lookup_ident};
 pub struct Lexer<'a> {
     input: &'a str,
     position: usize,
@@ -76,7 +76,7 @@ impl<'a> Lexer<'a> {
                 let ident = self.read_identifier();
                 return lookup_ident(&ident);
             }
-            _ if self.ch.is_digit(10) => {
+            _ if self.ch.is_ascii_digit() => {
                 let literal = self.read_number();
                 return Int(literal);
             }
@@ -98,7 +98,7 @@ impl<'a> Lexer<'a> {
 
     fn read_number(&mut self) -> i64 {
         let start_position = self.position;
-        while self.ch.is_digit(10) {
+        while self.ch.is_ascii_digit() {
             self.read_char();
         }
         self.input[start_position..self.position]
@@ -369,7 +369,7 @@ fn test_next_token_statements_and_operators() {
             Token::Int(value) => {
                 assert_eq!(
                     token,
-                    Token::Int(value.clone()),
+                    Token::Int(*value),
                     "Test failed at index {}: expected {:?}, got {:?}",
                     num,
                     expected_token,

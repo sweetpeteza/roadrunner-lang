@@ -4,8 +4,8 @@ use rstest::rstest;
 use tracing::{debug, error, info};
 use tracing_test::traced_test;
 
-use crate::ast::node::Node;
-use crate::ast::precedence::Precedence;
+use crate::ast::Node;
+use crate::ast::Precedence;
 use crate::{lexer::Lexer, token::Token};
 
 pub struct Parser<'a> {
@@ -59,9 +59,7 @@ impl<'a> Parser<'a> {
         info!("BEGIN parse_expression_statement");
         let expression = self.parse_expression(Precedence::Lowest);
 
-        let statement = Node::ExprStmt {
-            expression: expression,
-        };
+        let statement = Node::ExprStmt { expression };
 
         if self.peek_token == Token::Semicolon {
             self.next_token(); // Consume the semicolon
@@ -87,13 +85,11 @@ impl<'a> Parser<'a> {
             _ => None,
         };
 
-        if prefix.is_none() {
-            return None;
-        }
+        prefix.as_ref()?;
 
         let mut left_expression = prefix;
 
-        while &self.peek_token.clone() != &Token::Semicolon
+        while self.peek_token.clone() != Token::Semicolon
             && precedence < self.get_precedence(&self.peek_token.clone())
         {
             // this is where the book has a hashmap of infix functions
@@ -500,8 +496,8 @@ impl<'a> Parser<'a> {
             self.current_token, self.peek_token
         );
 
-        while self.current_token != Token::Semicolon {
-            self.next_token(); // Skip tokens until we reach a semicolon
+        while self.current_token != Token::Semicolon && self.current_token != Token::Eof {
+            self.next_token(); // Skip tokens until we reach a semicolon or EOF
         }
 
         info!("END parse_let_statement");
@@ -537,7 +533,6 @@ impl<'a> Parser<'a> {
 
         debug!("ct: {:?} | pt: {:?}", self.current_token, self.peek_token);
     }
-
 }
 
 #[cfg(test)]
@@ -555,6 +550,7 @@ fn test_let_statements() {
         let y = 10;
         let foobar = 838383;
         let foobar = 1 + 2;
+        let no_semicolon = 42
         ";
 
     let mut lexer = Lexer::new(input);
@@ -577,7 +573,7 @@ fn test_let_statements() {
     };
     dbg!(&statements);
     assert_eq!(errors.len(), 0);
-    assert_eq!(statements.len(), 4);
+    assert_eq!(statements.len(), 5);
     assert_eq!(
         statements.next().expect("Expected first statement"),
         Node::Let {
@@ -685,7 +681,7 @@ fn test_return_statements() {
 
     let errors = parser.errors.into_iter();
 
-    errors.clone().into_iter().for_each(|e| {
+    errors.clone().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
@@ -715,7 +711,7 @@ fn test_identifier_expression() {
 
     let errors = parser.errors.into_iter();
 
-    errors.clone().into_iter().for_each(|e| {
+    errors.clone().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
@@ -746,7 +742,7 @@ fn test_integer_literal_expression() {
 
     let errors = parser.errors.into_iter();
 
-    errors.clone().into_iter().for_each(|e| {
+    errors.clone().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
@@ -775,7 +771,7 @@ fn test_boolean_literal_expression() {
 
     let errors = parser.errors.into_iter();
 
-    errors.clone().into_iter().for_each(|e| {
+    errors.clone().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
@@ -810,7 +806,7 @@ fn test_parsing_prefix_expression(
 
     let errors = parser.errors.into_iter();
 
-    errors.clone().into_iter().for_each(|e| {
+    errors.clone().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
@@ -832,7 +828,7 @@ fn test_parsing_prefix_expression(
         statements.first().expect("Expected at least one statement"),
         &Node::ExprStmt {
             expression: Some(Box::new(Node::Prefix {
-                operator: operator,
+                operator,
                 right: Some(Box::new(test_value))
             }))
         }
@@ -940,15 +936,13 @@ fn test_infix_expression(
 )]
 #[case("add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))")]
 fn test_operator_precedence_parsing(#[case] input: &str, #[case] expected_output: &str) {
-    use crate::ast::traits::Node;
-
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
 
     let errors = parser.errors.into_iter();
 
-    errors.clone().into_iter().for_each(|e| {
+    errors.clone().for_each(|e| {
         eprintln!("Error: {} at token {:?}", e.message, e.token);
     });
 
@@ -1104,7 +1098,7 @@ fn test_parse_function_literal(#[case] input: &str, #[case] expected_params: Vec
 
     let expected_params = expected_params.join(", ");
     let params_joined = params
-        .into_iter()
+        .iter()
         .map(|p| p.token_literal())
         .collect::<Vec<String>>()
         .join(", ");
@@ -1189,4 +1183,59 @@ fn test_call_expresssion() {
             }))
         })
     );
+}
+
+#[traced_test]
+#[rstest]
+fn test_let_function_function_assignment() {
+    let input = "let a = fn (x, y) { x + y; };";
+
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+
+    let errors = parser.errors.into_iter();
+
+    let statements = match &program {
+        Node::Program { statements, .. } => statements,
+        _ => panic!("Expected a program node"),
+    };
+
+    assert_eq!(errors.len(), 0);
+    assert_eq!(statements.len(), 1);
+
+    assert_eq!(
+        statements.first(),
+        Some(&Node::Let {
+            // Token::Let,
+            name: Some(Box::new(Node::Identifier {
+                name: "a".to_string()
+            })),
+            value: Some(Box::new(Node::Function {
+                parameters: vec![
+                    Node::Identifier {
+                        name: "x".to_string()
+                    },
+                    Node::Identifier {
+                        name: "y".to_string()
+                    }
+                ],
+                body: Some(Box::new(Node::Block {
+                    statements: vec![Node::ExprStmt {
+                        expression: Some(Box::new(Node::Infix {
+                            left: Some(Box::new(Node::Identifier {
+                                name: "x".to_string()
+                            })),
+                            operator: "+".to_string(),
+                            right: Some(Box::new(Node::Identifier {
+                                name: "y".to_string()
+                            })),
+                        }))
+                    }],
+                })),
+            })),
+        })
+    );
+
+    assert_eq!(program.string(), "let a = fn(x, y) {(x + y)}");
 }
