@@ -6,6 +6,7 @@ pub enum Object {
     Boolean(bool),
     Null,
     ReturnValue(Box<Object>),
+    Error(String),
 }
 
 impl Display for Object {
@@ -21,6 +22,21 @@ impl Object {
             Object::Boolean(value) => value.to_string(),
             Object::Null => "null".to_string(),
             Object::ReturnValue(value) => value.as_ref().inspect(),
+            Object::Error(error) => format!("{}", error),
         }
+    }
+
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Object::Integer(_) => "INTEGER",
+            Object::Boolean(_) => "BOOLEAN",
+            Object::Null => "NULL",
+            Object::ReturnValue(_) => "RETURN_VALUE",
+            Object::Error(_) => "ERROR",
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        matches!(self, Object::Error(_))
     }
 }
