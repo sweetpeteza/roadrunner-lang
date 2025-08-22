@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
@@ -38,5 +38,38 @@ impl Object {
 
     pub fn is_error(&self) -> bool {
         matches!(self, Object::Error(_))
+    }
+}
+
+#[derive(Debug)]
+pub struct Environment {
+    store: HashMap<String, Object>,
+    outer: Option<Box<Environment>>,
+}
+
+impl Environment {
+    pub fn new(outer: Option<Box<Environment>>) -> Self {
+        Environment {
+            store: HashMap::new(),
+            outer: outer,
+        }
+    }
+
+    pub fn get(&self, name: &str) -> Option<Object> {
+        match self.store.get(name) {
+            Some(obj) => Some(obj.clone()),
+            None => {
+                if let Some(outer) = &self.outer {
+                    outer.get(name)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn set(&mut self, name: String, val: Object) -> Object {
+        self.store.insert(name, val.clone());
+        val
     }
 }

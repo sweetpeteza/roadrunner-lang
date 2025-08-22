@@ -1,5 +1,6 @@
 use roadrunner::evaluator::Evaluator;
 use roadrunner::lexer::Lexer;
+use roadrunner::object::Environment;
 use roadrunner::parser::Parser;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
@@ -26,6 +27,8 @@ fn main() -> Result<(), anyhow::Error> {
         tracing::info!("Tracing information initialized");
     }
 
+    let mut environment = Environment::new(None);
+
     loop {
         tracing::debug!("Awaiting user input...");
         let readline = rl.readline("⚡: ");
@@ -46,7 +49,7 @@ fn main() -> Result<(), anyhow::Error> {
 
                 let evaluator = Evaluator::new();
 
-                let evaluated = evaluator.eval(program);
+                let evaluated = evaluator.eval(program, &mut environment);
 
                 println!("{}", evaluated);
             }

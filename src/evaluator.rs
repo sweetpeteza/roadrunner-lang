@@ -1,6 +1,11 @@
 use rstest::rstest;
+use tracing::debug;
+use tracing_test::traced_test;
 
-use crate::{ast::Node, object::Object};
+use crate::{
+    ast::Node,
+    object::{Environment, Object},
+};
 
 #[derive(Debug)]
 pub struct Evaluator {}
@@ -20,20 +25,20 @@ impl Evaluator {
         Evaluator {}
     }
 
-    pub fn eval(&self, node: Node) -> Object {
+    pub fn eval(&self, node: Node, env: &mut Environment) -> Object {
         use crate::ast::Node::*;
         match node {
-            Program { statements: _ } => self.eval_program(node),
+            Program { statements: _ } => self.eval_program(node, env),
             ExprStmt { expression } => match expression {
                 None => NULL,
-                Some(expr) => self.eval(*expr),
+                Some(expr) => self.eval(*expr, env),
             },
             IntegerLiteral { value } => Object::Integer(value),
             BooleanLiteral { value } => self.native_bool_to_boolean_object(value),
             Prefix { operator, right } => match right {
                 None => NULL,
                 Some(r) => {
-                    let right = self.eval(*r);
+                    let right = self.eval(*r, env);
                     if right.is_error() {
                         return right;
                     }
@@ -46,13 +51,13 @@ impl Evaluator {
                 right,
             } => match (left, right) {
                 (Some(l), Some(r)) => {
-                    let left = self.eval(*l);
+                    let left = self.eval(*l, env);
 
                     if left.is_error() {
                         return left;
                     }
 
-                    let right = self.eval(*r);
+                    let right = self.eval(*r, env);
 
                     if right.is_error() {
                         return right;
@@ -62,14 +67,14 @@ impl Evaluator {
                 }
                 _ => NULL,
             },
-            Block { statements: _ } => self.eval_block_statement(node),
+            Block { statements: _ } => self.eval_block_statement(node, env),
             If {
                 condition,
                 consequence,
                 alternative,
             } => {
                 let condition = match condition {
-                    Some(cond) => self.eval(*cond),
+                    Some(cond) => self.eval(*cond, env),
                     None => NULL,
                 };
 
@@ -79,18 +84,18 @@ impl Evaluator {
 
                 if self.is_truthy(&condition) {
                     return match consequence {
-                        Some(cons) => self.eval(*cons),
+                        Some(cons) => self.eval(*cons, env),
                         None => NULL,
                     };
                 } else if let Some(alt) = alternative {
-                    return self.eval(*alt);
+                    return self.eval(*alt, env);
                 } else {
                     return NULL;
                 }
             }
             Return { return_value } => match return_value {
                 Some(value) => {
-                    let val = self.eval(*value);
+                    let val = self.eval(*value, env);
                     if val.is_error() {
                         return val;
                     }
@@ -98,11 +103,43 @@ impl Evaluator {
                 }
                 None => NULL,
             },
+            Let { name, value } => {
+                let value_object = match value {
+                    Some(val) => {
+                        let obj = self.eval(*val, env);
+                        if obj.is_error() {
+                            return obj;
+                        }
+                        obj
+                    }
+                    None => NULL,
+                };
+
+                let name_node = match name {
+                    Some(n) => n,
+                    None => return NULL,
+                };
+
+                let name_str = match *name_node {
+                    Node::Identifier { name } => name,
+                    // prevent incorrect node type
+                    _ => return Object::Error("let statement must have an identifier".to_string()),
+                };
+
+                env.set(name_str, value_object.clone());
+
+                value_object
+            }
+            Identifier { name } => match env.get(&name) {
+                Some(val) => val,
+                None => Object::Error(format!("identifier not found: {}", name)),
+            },
+
             _ => NULL,
         }
     }
 
-    fn eval_program(&self, program: Node) -> Object {
+    fn eval_program(&self, program: Node, environment: &mut Environment) -> Object {
         let statements = match program {
             Node::Program { statements } => statements,
             // prevent incorrect node type
@@ -111,7 +148,7 @@ impl Evaluator {
 
         let mut result = NULL;
         for statement in statements {
-            result = self.eval(statement);
+            result = self.eval(statement, environment);
 
             match result {
                 Object::ReturnValue(ret_val) => return *ret_val,
@@ -123,7 +160,7 @@ impl Evaluator {
         result
     }
 
-    fn eval_block_statement(&self, block: Node) -> Object {
+    fn eval_block_statement(&self, block: Node, environment: &mut Environment) -> Object {
         let statements = match block {
             Node::Block { statements } => statements,
             // prevent incorrect node type
@@ -132,7 +169,7 @@ impl Evaluator {
 
         let mut result = NULL;
         for statement in statements {
-            result = self.eval(statement);
+            result = self.eval(statement, environment);
 
             match result {
                 Object::ReturnValue(ref return_val) => match return_val.as_ref() {
@@ -249,7 +286,8 @@ use crate::{lexer::Lexer, parser::Parser};
 #[case(Node::BooleanLiteral { value: false }, FALSE)]
 fn test_eval(#[case] input: Node, #[case] expected: Object) {
     let evaluator = Evaluator {};
-    let evaluated = evaluator.eval(input);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(input, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -265,7 +303,8 @@ fn test_bang_operator(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -279,7 +318,8 @@ fn test_minus_prefix_operator(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -304,7 +344,8 @@ fn test_integer_expressions(#[case] input: &str, #[case] expected: i64) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     match evaluated {
         Object::Integer(value) => assert_eq!(value, expected),
         _ => panic!("object is not Integer. got={}", evaluated),
@@ -327,7 +368,8 @@ fn test_boolean_expressions(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -346,7 +388,8 @@ fn test_boolean_infix_expressions(#[case] input: &str, #[case] expected: Object)
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -363,7 +406,8 @@ fn test_if_expressions(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -381,7 +425,8 @@ fn test_return_statements(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
 
@@ -396,15 +441,33 @@ fn test_return_statements(#[case] input: &str, #[case] expected: Object) {
     "if (10 > 1) { if (10 > 1) { return true + false; } return 1; }",
     "unknown operator: BOOLEAN + BOOLEAN"
 )]
+#[case("foobar", "identifier not found: foobar")]
 fn test_error_handling(#[case] input: &str, #[case] expected_message: &str) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let evaluated = evaluator.eval(program);
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
 
     match evaluated {
         Object::Error(message) => assert_eq!(message, expected_message),
         _ => panic!("no error object returned. got={}", evaluated),
     }
+}
+
+#[rstest]
+#[traced_test]
+#[case("let a = 5; a;", Object::Integer(5))]
+#[case("let a = 5 * 5; a;", Object::Integer(25))]
+#[case("let a = 5; let b = a; b;", Object::Integer(5))]
+#[case("let a = 5; let b = a; let c = a + b + 5; c;", Object::Integer(15))]
+fn test_let_statements(#[case] input: &str, #[case] expected: Object) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+    let evaluator = Evaluator::new();
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
+    assert_eq!(evaluated, expected);
 }
