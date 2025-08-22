@@ -1,3 +1,4 @@
+use roadrunner::evaluator::{self, Evaluator};
 use roadrunner::lexer::Lexer;
 use roadrunner::parser::Parser;
 use rustyline::DefaultEditor;
@@ -43,7 +44,11 @@ fn main() -> Result<(), anyhow::Error> {
                     }
                 }
 
-                println!("{}", program.string());
+                let evaluator = Evaluator::new();
+
+                let evaluated = evaluator.eval(program);
+
+                println!("{}", evaluated);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C pressed. Exiting.");
