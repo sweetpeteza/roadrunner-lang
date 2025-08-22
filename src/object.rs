@@ -4,7 +4,8 @@ use std::fmt::Display;
 pub enum Object {
     Integer(i64),
     Boolean(bool),
-    Null
+    Null,
+    ReturnValue(Box<Object>),
 }
 
 impl Display for Object {
@@ -19,6 +20,7 @@ impl Object {
             Object::Integer(value) => value.to_string(),
             Object::Boolean(value) => value.to_string(),
             Object::Null => "null".to_string(),
+            Object::ReturnValue(value) => value.as_ref().inspect(),
         }
     }
 }
