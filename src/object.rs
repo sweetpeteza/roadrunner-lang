@@ -1,3 +1,4 @@
+use crate::ast::Node;
 use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -7,6 +8,11 @@ pub enum Object {
     Null,
     ReturnValue(Box<Object>),
     Error(String),
+    Function {
+        parameters: Vec<Node>,
+        body: Option<Box<Node>>,
+        env: Box<Environment>,
+    },
 }
 
 impl Display for Object {
@@ -23,6 +29,19 @@ impl Object {
             Object::Null => "null".to_string(),
             Object::ReturnValue(value) => value.as_ref().inspect(),
             Object::Error(error) => format!("{}", error),
+            Object::Function {
+                parameters, body, ..
+            } => {
+                let mut out = String::new();
+
+                let params: Vec<String> = parameters.iter().map(|p| p.string()).collect();
+
+                let body = body.as_ref().map_or("".to_string(), |b| b.string());
+
+                out.push_str(format!("fn({}) {{\n {} \n}}", params.join(", "), body).as_str());
+
+                out
+            }
         }
     }
 
@@ -33,6 +52,7 @@ impl Object {
             Object::Null => "NULL",
             Object::ReturnValue(_) => "RETURN_VALUE",
             Object::Error(_) => "ERROR",
+            Object::Function { .. } => "FUNCTION_OBJ",
         }
     }
 
@@ -41,7 +61,7 @@ impl Object {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
     store: HashMap<String, Object>,
     outer: Option<Box<Environment>>,

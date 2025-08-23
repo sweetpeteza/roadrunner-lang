@@ -149,7 +149,6 @@ impl<'a> Parser<'a> {
 
     fn parse_call_expression(&mut self, function: Option<Box<Node>>) -> Option<Box<Node>> {
         info!("BEGIN parse_call_expression");
-        let token = self.peek_token.clone();
         let arguments = self.parse_call_arguments();
 
         info!("END parse_call_expression");
@@ -198,8 +197,6 @@ impl<'a> Parser<'a> {
     fn parse_if_expression(&mut self) -> Option<Box<Node>> {
         info!("BEGIN parse_if_expression");
         // first token is if
-        let if_token = self.current_token.clone();
-
         if self.peek_token != Token::Lparen {
             return None;
         }
@@ -248,8 +245,6 @@ impl<'a> Parser<'a> {
 
     fn parse_function_literal(&mut self) -> Option<Box<Node>> {
         info!("BEGIN parse_function_literal");
-        let token = self.current_token.clone();
-
         self.next_token();
 
         if self.current_token != Token::Lparen {
@@ -466,8 +461,6 @@ impl<'a> Parser<'a> {
 
     fn parse_let_statement(&mut self) -> Result<Box<Node>, ParseError> {
         info!("BEGIN parse_let_statement");
-        let let_token = self.current_token.clone();
-
         self.next_token(); // Move past the 'let' token
         let name = if let Token::Ident(name) = self.current_token.clone() {
             name
@@ -511,8 +504,6 @@ impl<'a> Parser<'a> {
 
     fn parse_return_statement(&mut self) -> Result<Box<Node>, ParseError> {
         info!("BEGIN parse_return_statement");
-        let return_token = self.current_token.clone();
-
         self.next_token(); // move past the 'return' token
 
         let return_value = self.parse_expression(Precedence::Lowest);

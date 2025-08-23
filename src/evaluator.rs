@@ -1,6 +1,5 @@
 use rstest::rstest;
-use tracing::debug;
-use tracing_test::traced_test;
+use tracing::{debug, info};
 
 use crate::{
     ast::Node,
@@ -123,7 +122,11 @@ impl Evaluator {
                 let name_str = match *name_node {
                     Node::Identifier { name } => name,
                     // prevent incorrect node type
-                    _ => return Object::Error("let statement must have an identifier".to_string()),
+                    _ => {
+                        return Object::Error(
+                            "let statement name must be an identifier".to_string(),
+                        )
+                    }
                 };
 
                 env.set(name_str, value_object.clone());
@@ -134,8 +137,35 @@ impl Evaluator {
                 Some(val) => val,
                 None => Object::Error(format!("identifier not found: {}", name)),
             },
+            Function { parameters, body } => Object::Function {
+                parameters,
+                body: body,
+                env: Box::new(env.clone()),
+            },
+            Call {
+                function,
+                arguments,
+            } => {
+                let function = match function {
+                    Some(func) => self.eval(*func, env),
+                    None => return NULL,
+                };
 
-            _ => NULL,
+                if function.is_error() {
+                    return function;
+                }
+
+                info!("Function to be called: {:?}", function);
+                info!("Arguments to be evaluated: {:?}", arguments);
+                info!("Current environment: {:?}", env);
+                let args = self.eval_expressions(arguments, env);
+
+                if args.len() == 1 && args[0].is_error() {
+                    return args[0].clone();
+                }
+
+                self.apply_function(function, args)
+            }
         }
     }
 
@@ -157,6 +187,87 @@ impl Evaluator {
             }
         }
 
+        result
+    }
+
+    fn apply_function(&self, function: Object, args: Vec<Object>) -> Object {
+        match &function {
+            Object::Function { body, .. } => {
+                let mut extended_env = match self.extend_function_env(function.clone(), args) {
+                    Ok(env) => env,
+                    Err(err) => return err,
+                };
+
+                let evaluated = match body {
+                    Some(bdy) => self.eval(*bdy.clone(), &mut extended_env),
+                    None => NULL,
+                };
+
+                self.unwrap_return_value(evaluated)
+            }
+            _ => Object::Error(format!("not a function: {}", &function.type_name())),
+        }
+    }
+
+    fn unwrap_return_value(&self, obj: Object) -> Object {
+        match obj {
+            Object::ReturnValue(value) => *value,
+            _ => obj,
+        }
+    }
+
+    fn extend_function_env(
+        &self,
+        function: Object,
+        args: Vec<Object>,
+    ) -> Result<Environment, Object> {
+        match function {
+            Object::Function {
+                parameters,
+                env: func_env,
+                ..
+            } => {
+                let mut extended_env = Environment::new(Some(func_env));
+
+                for (param, arg) in parameters.iter().zip(args.into_iter()) {
+                    let param_name = match param {
+                        Node::Identifier { name } => name.clone(),
+                        // prevent incorrect node type
+                        _ => {
+                            return Err(Object::Error(
+                                "function parameter must be an identifier".to_string(),
+                            ))
+                        }
+                    };
+                    extended_env.set(param_name, arg);
+                }
+
+                debug!("Extended function environment: {:?}", extended_env);
+                Ok(extended_env)
+            }
+            _ => Err(Object::Error(format!(
+                "not a function: {}",
+                function.type_name()
+            ))),
+        }
+    }
+
+    fn eval_expressions(
+        &self,
+        expressions: Vec<Node>,
+        environment: &mut Environment,
+    ) -> Vec<Object> {
+        let mut result = Vec::new();
+
+        for expr in expressions {
+            let evaluated = self.eval(expr, environment);
+            if evaluated.is_error() {
+                return vec![evaluated]; // return the error in the vector
+            }
+            result.push(evaluated);
+        }
+
+        debug!("Evaluated expressions: {:?}", result);
         result
     }
 
@@ -278,6 +389,9 @@ impl Evaluator {
 
 #[cfg(test)]
 use crate::{lexer::Lexer, parser::Parser};
+
+#[cfg(test)]
+use tracing_test::traced_test;
 
 #[rstest]
 #[case(Node::IntegerLiteral { value: 5 }, Object::Integer(5))]
@@ -468,6 +582,45 @@ fn test_let_statements(#[case] input: &str, #[case] expected: Object) {
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
     let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
+    assert_eq!(evaluated, expected);
+}
+
+#[rstest]
+#[case("let identity = fn(x) { x; }; identity(5);", Object::Integer(5))]
+#[case("let identity = fn(x) { return x; }; identity(5);", Object::Integer(5))]
+#[case("let double = fn(x) { x * 2; }; double(5);", Object::Integer(10))]
+#[case("let add = fn(x, y) { x + y; }; add(5, 5);", Object::Integer(10))]
+#[case(
+    "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));",
+    Object::Integer(20)
+)]
+#[case("fn(x) { x; }(5)", Object::Integer(5))]
+fn test_function_application(#[case] input: &str, #[case] expected: Object) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+    let evaluator = Evaluator::new();
+    let mut env = Environment::new(None);
+    let evaluated = evaluator.eval(program, &mut env);
+    assert_eq!(evaluated, expected);
+}
+
+#[rstest]
+#[traced_test]
+#[case(
+    "let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);",
+    Object::Integer(4)
+)]
+// This test is the bain of my existence right now
+// #[case("let counter = fn(x) {   if (x > 100) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);", TRUE)]
+fn test_closures(#[case] input: &str, #[case] expected: Object) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+    let evaluator = Evaluator::new();
+    let mut env = Environment::new(None);
+    debug!("Evaluating program: {:?}", program);
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
