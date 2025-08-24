@@ -612,8 +612,7 @@ fn test_function_application(#[case] input: &str, #[case] expected: Object) {
     "let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);",
     Object::Integer(4)
 )]
-// This test is the bain of my existence right now
-// #[case("let counter = fn(x) {   if (x > 100) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);", TRUE)]
+#[case("let counter = fn(x) {   if (x > 100) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);", TRUE)]
 fn test_closures(#[case] input: &str, #[case] expected: Object) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
