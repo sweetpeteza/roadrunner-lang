@@ -76,6 +76,7 @@ impl Environment {
     }
 
     pub fn get(&self, name: &str) -> Option<Object> {
+        dbg!(&self.store, &name);
         match self.store.get(name) {
             Some(obj) => Some(obj.clone()),
             None => {
@@ -88,8 +89,8 @@ impl Environment {
         }
     }
 
-    pub fn set(&mut self, name: String, val: Object) -> Object {
-        self.store.insert(name, val.clone());
+    pub fn set(&mut self, name: &str, val: Object) -> Object {
+        self.store.insert(name.to_string(), val.clone());
         val
     }
 }

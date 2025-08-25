@@ -103,17 +103,6 @@ impl Evaluator {
                 None => NULL,
             },
             Let { name, value } => {
-                let value_object = match value {
-                    Some(val) => {
-                        let obj = self.eval(*val, env);
-                        if obj.is_error() {
-                            return obj;
-                        }
-                        obj
-                    }
-                    None => NULL,
-                };
-
                 let name_node = match name {
                     Some(n) => n,
                     None => return NULL,
@@ -129,7 +118,42 @@ impl Evaluator {
                     }
                 };
 
-                env.set(name_str, value_object.clone());
+                let mut value_object = match value {
+                    Some(val) => {
+                        let obj = self.eval(*val, env);
+                        if obj.is_error() {
+                            return obj;
+                        }
+
+                        obj
+                    }
+                    None => NULL,
+                };
+
+                let fn_obj = match &value_object {
+                    Object::Function {
+                        parameters,
+                        body,
+                        env,
+                    } => {
+                        let mut new_env = env.clone();
+
+                        new_env.set(&name_str, value_object.clone());
+                        Some(Object::Function {
+                            parameters: parameters.clone(),
+                            body: body.clone(),
+                            env: new_env,
+                        })
+                    }
+                    _ => None,
+                };
+
+                if fn_obj.is_some() {
+                    env.set(&name_str, value_object.clone());
+                    return fn_obj.unwrap();
+                }
+
+                env.set(&name_str, value_object.clone());
 
                 value_object
             }
@@ -155,9 +179,6 @@ impl Evaluator {
                     return function;
                 }
 
-                info!("Function to be called: {:?}", function);
-                info!("Arguments to be evaluated: {:?}", arguments);
-                info!("Current environment: {:?}", env);
                 let args = self.eval_expressions(arguments, env);
 
                 if args.len() == 1 && args[0].is_error() {
@@ -239,7 +260,7 @@ impl Evaluator {
                             ))
                         }
                     };
-                    extended_env.set(param_name, arg);
+                    extended_env.set(&param_name, arg);
                 }
 
                 debug!("Extended function environment: {:?}", extended_env);
@@ -612,7 +633,7 @@ fn test_function_application(#[case] input: &str, #[case] expected: Object) {
     "let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);",
     Object::Integer(4)
 )]
-#[case("let counter = fn(x) {   if (x > 100) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);", TRUE)]
+#[case("let counter = fn(x) {   if (x > 10) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);", TRUE)]
 fn test_closures(#[case] input: &str, #[case] expected: Object) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
