@@ -1,10 +1,7 @@
 use rstest::rstest;
-use tracing::{debug, info};
+use tracing::debug;
 
-use crate::{
-    ast::Node,
-    object::{Environment, Object},
-};
+use crate::{ast::Node, environment::Environment, object::Object};
 
 #[derive(Debug)]
 pub struct Evaluator {}
@@ -34,159 +31,18 @@ impl Evaluator {
             },
             IntegerLiteral { value } => Object::Integer(value),
             BooleanLiteral { value } => self.native_bool_to_boolean_object(value),
-            Prefix { operator, right } => match right {
-                None => NULL,
-                Some(r) => {
-                    let right = self.eval(*r, env);
-                    if right.is_error() {
-                        return right;
-                    }
-                    self.eval_prefix_expression(operator, right)
-                }
-            },
-            Infix {
-                left,
-                operator,
-                right,
-            } => match (left, right) {
-                (Some(l), Some(r)) => {
-                    let left = self.eval(*l, env);
-
-                    if left.is_error() {
-                        return left;
-                    }
-
-                    let right = self.eval(*r, env);
-
-                    if right.is_error() {
-                        return right;
-                    }
-
-                    self.eval_infix_expression(operator, left, right)
-                }
-                _ => NULL,
-            },
-            Block { statements: _ } => self.eval_block_statement(node, env),
-            If {
-                condition,
-                consequence,
-                alternative,
-            } => {
-                let condition = match condition {
-                    Some(cond) => self.eval(*cond, env),
-                    None => NULL,
-                };
-
-                if condition.is_error() {
-                    return condition;
-                }
-
-                if self.is_truthy(&condition) {
-                    return match consequence {
-                        Some(cons) => self.eval(*cons, env),
-                        None => NULL,
-                    };
-                } else if let Some(alt) = alternative {
-                    return self.eval(*alt, env);
-                } else {
-                    return NULL;
-                }
-            }
-            Return { return_value } => match return_value {
-                Some(value) => {
-                    let val = self.eval(*value, env);
-                    if val.is_error() {
-                        return val;
-                    }
-                    Object::ReturnValue(Box::new(val))
-                }
-                None => NULL,
-            },
-            Let { name, value } => {
-                let name_node = match name {
-                    Some(n) => n,
-                    None => return NULL,
-                };
-
-                let name_str = match *name_node {
-                    Node::Identifier { name } => name,
-                    // prevent incorrect node type
-                    _ => {
-                        return Object::Error(
-                            "let statement name must be an identifier".to_string(),
-                        )
-                    }
-                };
-
-                let mut value_object = match value {
-                    Some(val) => {
-                        let obj = self.eval(*val, env);
-                        if obj.is_error() {
-                            return obj;
-                        }
-
-                        obj
-                    }
-                    None => NULL,
-                };
-
-                let fn_obj = match &value_object {
-                    Object::Function {
-                        parameters,
-                        body,
-                        env,
-                    } => {
-                        let mut new_env = env.clone();
-
-                        new_env.set(&name_str, value_object.clone());
-                        Some(Object::Function {
-                            parameters: parameters.clone(),
-                            body: body.clone(),
-                            env: new_env,
-                        })
-                    }
-                    _ => None,
-                };
-
-                if fn_obj.is_some() {
-                    env.set(&name_str, value_object.clone());
-                    return fn_obj.unwrap();
-                }
-
-                env.set(&name_str, value_object.clone());
-
-                value_object
-            }
-            Identifier { name } => match env.get(&name) {
-                Some(val) => val,
-                None => Object::Error(format!("identifier not found: {}", name)),
-            },
-            Function { parameters, body } => Object::Function {
-                parameters,
-                body: body,
-                env: Box::new(env.clone()),
-            },
+            Prefix { .. } => self.pre_eval_prefix_expression(node, env),
+            Infix { .. } => self.pre_eval_infix_expression(node, env),
+            Block { .. } => self.eval_block_statement(node, env),
+            If { .. } => self.eval_if_statement(node, env),
+            Return { return_value } => self.eval_return_statement(return_value, env),
+            Let { name, value } => self.eval_let_statement(name, value, env),
+            Identifier { name } => self.eval_identifier(name, env),
+            Function { .. } => self.eval_function_definition(node, env),
             Call {
                 function,
                 arguments,
-            } => {
-                let function = match function {
-                    Some(func) => self.eval(*func, env),
-                    None => return NULL,
-                };
-
-                if function.is_error() {
-                    return function;
-                }
-
-                let args = self.eval_expressions(arguments, env);
-
-                if args.len() == 1 && args[0].is_error() {
-                    return args[0].clone();
-                }
-
-                self.apply_function(function, args)
-            }
+            } => self.eval_call_expression(function, arguments, env),
         }
     }
 
@@ -209,6 +65,196 @@ impl Evaluator {
         }
 
         result
+    }
+
+    fn pre_eval_prefix_expression(&self, node: Node, env: &mut Environment) -> Object {
+        match node {
+            Node::Prefix { operator, right } => {
+                let right = match right {
+                    Some(r) => self.eval(*r, env),
+                    None => NULL,
+                };
+
+                if right.is_error() {
+                    return right;
+                }
+
+                self.eval_prefix_expression(operator, right)
+            }
+            _ => NULL,
+        }
+    }
+
+    fn pre_eval_infix_expression(&self, node: Node, env: &mut Environment) -> Object {
+        match node {
+            Node::Infix {
+                left,
+                operator,
+                right,
+            } => {
+                let left = match left {
+                    Some(l) => self.eval(*l, env),
+                    None => NULL,
+                };
+
+                if left.is_error() {
+                    return left;
+                }
+
+                let right = match right {
+                    Some(r) => self.eval(*r, env),
+                    None => NULL,
+                };
+
+                if right.is_error() {
+                    return right;
+                }
+
+                self.eval_infix_expression(operator, left, right)
+            }
+            _ => NULL,
+        }
+    }
+
+    fn eval_if_statement(&self, if_statement: Node, env: &mut Environment) -> Object {
+        let (condition, consequence, alternative) = match if_statement {
+            Node::If {
+                condition,
+                consequence,
+                alternative,
+            } => (condition, consequence, alternative),
+            // prevent incorrect node type
+            _ => return NULL,
+        };
+        let condition = match condition {
+            Some(cond) => self.eval(*cond, env),
+            None => NULL,
+        };
+
+        if condition.is_error() {
+            return condition;
+        }
+
+        if self.is_truthy(&condition) {
+            match consequence {
+                Some(cons) => self.eval(*cons, env),
+                None => NULL,
+            }
+        } else if let Some(alt) = alternative {
+            return self.eval(*alt, env);
+        } else {
+            return NULL;
+        }
+    }
+
+    fn eval_return_statement(
+        &self,
+        return_value: Option<Box<Node>>,
+        env: &mut Environment,
+    ) -> Object {
+        match return_value {
+            Some(value) => {
+                let val = self.eval(*value, env);
+                if val.is_error() {
+                    return val;
+                }
+                Object::ReturnValue(Box::new(val))
+            }
+            None => NULL,
+        }
+    }
+
+    fn eval_identifier(&self, name: String, env: &mut Environment) -> Object {
+        debug!("Evaluating identifier: {}", name);
+        dbg!(&env);
+        match env.get(&name) {
+            Some(val) => val,
+            None => Object::Error(format!("identifier not found: {}", name)),
+        }
+    }
+
+    fn eval_let_statement(
+        &self,
+        name: Option<Box<Node>>,
+        value: Option<Box<Node>>,
+        env: &mut Environment,
+    ) -> Object {
+        let name_node = match name {
+            Some(n) => n,
+            None => return NULL,
+        };
+
+        let name_str = match *name_node {
+            Node::Identifier { name } => name,
+            // prevent incorrect node type
+            _ => return Object::Error("let statement name must be an identifier".to_string()),
+        };
+
+        let value_object = match value.clone() {
+            Some(val) => {
+                let obj = self.eval(*val, env);
+                if obj.is_error() {
+                    return obj;
+                }
+
+                obj
+            }
+            None => NULL,
+        };
+
+        env.set(&name_str, value_object.clone());
+        let new_env = Environment::new_enclosed(env.clone());
+        *env = new_env.clone();
+
+        let value_object = match value {
+            Some(val) => {
+                let obj = self.eval(*val, env);
+                if obj.is_error() {
+                    return obj;
+                }
+
+                obj
+            }
+            None => NULL,
+        };
+
+        value_object
+    }
+
+    fn eval_function_definition(&self, func: Node, env: &mut Environment) -> Object {
+        match func {
+            Node::Function { parameters, body } => Object::Function {
+                parameters,
+                body,
+                env: Environment::new_enclosed(env.clone()).into(),
+            },
+            // prevent incorrect node type
+            _ => NULL,
+        }
+    }
+
+    fn eval_call_expression(
+        &self,
+        function: Option<Box<Node>>,
+        arguments: Vec<Node>,
+        env: &mut Environment,
+    ) -> Object {
+        let function = match function {
+            Some(func) => self.eval(*func, env),
+            None => return NULL,
+        };
+
+        if function.is_error() {
+            return function;
+        }
+
+        let args = self.eval_expressions(arguments, env);
+
+        if args.len() == 1 && args[0].is_error() {
+            return args[0].clone();
+        }
+
+        self.apply_function(function, args)
     }
 
     fn apply_function(&self, function: Object, args: Vec<Object>) -> Object {
@@ -248,7 +294,7 @@ impl Evaluator {
                 env: func_env,
                 ..
             } => {
-                let mut extended_env = Environment::new(Some(func_env));
+                let mut extended_env = Environment::new_enclosed(*func_env);
 
                 for (param, arg) in parameters.iter().zip(args.into_iter()) {
                     let param_name = match param {
@@ -257,7 +303,7 @@ impl Evaluator {
                         _ => {
                             return Err(Object::Error(
                                 "function parameter must be an identifier".to_string(),
-                            ))
+                            ));
                         }
                     };
                     extended_env.set(&param_name, arg);
@@ -317,10 +363,10 @@ impl Evaluator {
     }
 
     fn is_truthy(&self, obj: &Object) -> bool {
-        match obj {
-            &TRUE => true,
-            &FALSE => false,
-            &NULL => false,
+        match *obj {
+            TRUE => true,
+            FALSE => false,
+            NULL => false,
             _ => true,
         }
     }
@@ -421,7 +467,7 @@ use tracing_test::traced_test;
 #[case(Node::BooleanLiteral { value: false }, FALSE)]
 fn test_eval(#[case] input: Node, #[case] expected: Object) {
     let evaluator = Evaluator {};
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(input, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -438,7 +484,7 @@ fn test_bang_operator(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -453,7 +499,7 @@ fn test_minus_prefix_operator(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -479,7 +525,7 @@ fn test_integer_expressions(#[case] input: &str, #[case] expected: i64) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     match evaluated {
         Object::Integer(value) => assert_eq!(value, expected),
@@ -503,7 +549,7 @@ fn test_boolean_expressions(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -523,7 +569,7 @@ fn test_boolean_infix_expressions(#[case] input: &str, #[case] expected: Object)
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -541,7 +587,7 @@ fn test_if_expressions(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -560,7 +606,7 @@ fn test_return_statements(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -582,7 +628,7 @@ fn test_error_handling(#[case] input: &str, #[case] expected_message: &str) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
 
     match evaluated {
@@ -602,7 +648,7 @@ fn test_let_statements(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -622,7 +668,7 @@ fn test_function_application(#[case] input: &str, #[case] expected: Object) {
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
 }
@@ -633,13 +679,16 @@ fn test_function_application(#[case] input: &str, #[case] expected: Object) {
     "let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);",
     Object::Integer(4)
 )]
-#[case("let counter = fn(x) {   if (x > 10) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);", TRUE)]
+#[case(
+    "let counter = fn(x) {   if (x > 10) {     return true;   } else {     let foobar = 9999;     counter(x + 1);   } }; counter(0);",
+    TRUE
+)]
 fn test_closures(#[case] input: &str, #[case] expected: Object) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
     let evaluator = Evaluator::new();
-    let mut env = Environment::new(None);
+    let mut env = Environment::new();
     debug!("Evaluating program: {:?}", program);
     let evaluated = evaluator.eval(program, &mut env);
     assert_eq!(evaluated, expected);
