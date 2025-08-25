@@ -1,5 +1,5 @@
-use crate::ast::Node;
-use std::{collections::HashMap, fmt::Display};
+use crate::{ast::Node, environment::Environment};
+use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
@@ -28,7 +28,7 @@ impl Object {
             Object::Boolean(value) => value.to_string(),
             Object::Null => "null".to_string(),
             Object::ReturnValue(value) => value.as_ref().inspect(),
-            Object::Error(error) => format!("{}", error),
+            Object::Error(error) => error.to_string(),
             Object::Function {
                 parameters, body, ..
             } => {
@@ -58,39 +58,5 @@ impl Object {
 
     pub fn is_error(&self) -> bool {
         matches!(self, Object::Error(_))
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Environment {
-    store: HashMap<String, Object>,
-    outer: Option<Box<Environment>>,
-}
-
-impl Environment {
-    pub fn new(outer: Option<Box<Environment>>) -> Self {
-        Environment {
-            store: HashMap::new(),
-            outer: outer,
-        }
-    }
-
-    pub fn get(&self, name: &str) -> Option<Object> {
-        dbg!(&self.store, &name);
-        match self.store.get(name) {
-            Some(obj) => Some(obj.clone()),
-            None => {
-                if let Some(outer) = &self.outer {
-                    outer.get(name)
-                } else {
-                    None
-                }
-            }
-        }
-    }
-
-    pub fn set(&mut self, name: &str, val: Object) -> Object {
-        self.store.insert(name.to_string(), val.clone());
-        val
     }
 }

@@ -1,9 +1,9 @@
+use roadrunner::environment::Environment;
 use roadrunner::evaluator::Evaluator;
 use roadrunner::lexer::Lexer;
-use roadrunner::object::Environment;
 use roadrunner::parser::Parser;
-use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
 
 fn main() -> Result<(), anyhow::Error> {
     println!("Hello! This is the Roadrunner programming language!");
@@ -27,7 +27,7 @@ fn main() -> Result<(), anyhow::Error> {
         tracing::info!("Tracing information initialized");
     }
 
-    let mut environment = Environment::new(None);
+    let mut environment = Environment::new();
 
     loop {
         tracing::debug!("Awaiting user input...");
