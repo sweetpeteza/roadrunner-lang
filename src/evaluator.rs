@@ -61,7 +61,7 @@ impl Evaluator {
 
         let mut result = NULL;
         for statement in statements {
-            result = self.eval(statement, environment.clone());
+            result = self.eval(statement, Rc::clone(&environment));
 
             match result {
                 Object::ReturnValue(ret_val) => return *ret_val,
@@ -77,7 +77,7 @@ impl Evaluator {
         match node {
             Node::Prefix { operator, right } => {
                 let right = match right {
-                    Some(r) => self.eval(*r, env.clone()),
+                    Some(r) => self.eval(*r, Rc::clone(&env)),
                     None => NULL,
                 };
 
@@ -99,7 +99,7 @@ impl Evaluator {
                 right,
             } => {
                 let left = match left {
-                    Some(l) => self.eval(*l, env.clone()),
+                    Some(l) => self.eval(*l, Rc::clone(&env)),
                     None => NULL,
                 };
 
@@ -108,7 +108,7 @@ impl Evaluator {
                 }
 
                 let right = match right {
-                    Some(r) => self.eval(*r, env.clone()),
+                    Some(r) => self.eval(*r, Rc::clone(&env)),
                     None => NULL,
                 };
 
@@ -133,7 +133,7 @@ impl Evaluator {
             _ => return NULL,
         };
         let condition = match condition {
-            Some(cond) => self.eval(*cond, env.clone()),
+            Some(cond) => self.eval(*cond, Rc::clone(&env)),
             None => NULL,
         };
 
@@ -143,7 +143,7 @@ impl Evaluator {
 
         if self.is_truthy(&condition) {
             match consequence {
-                Some(cons) => self.eval(*cons, env.clone()),
+                Some(cons) => self.eval(*cons, Rc::clone(&env)),
                 None => NULL,
             }
         } else if let Some(alt) = alternative {
@@ -156,7 +156,7 @@ impl Evaluator {
     fn eval_return_statement(&self, return_value: Option<Box<Node>>, env: Env) -> Object {
         match return_value {
             Some(value) => {
-                let val = self.eval(*value, env.clone());
+                let val = self.eval(*value, Rc::clone(&env));
                 if val.is_error() {
                     return val;
                 }
@@ -168,7 +168,6 @@ impl Evaluator {
 
     fn eval_identifier(&self, name: String, env: Env) -> Object {
         debug!("Evaluating identifier: {}", name);
-        dbg!(&env);
         match env.borrow().get(&name) {
             Some(val) => val,
             None => Object::Error(format!("identifier not found: {}", name)),
@@ -193,7 +192,7 @@ impl Evaluator {
 
         let value_object = match value {
             Some(val) => {
-                let obj = self.eval(*val, env.clone());
+                let obj = self.eval(*val, Rc::clone(&env));
                 if obj.is_error() {
                     return obj;
                 }
@@ -211,7 +210,7 @@ impl Evaluator {
             Node::Function { parameters, body } => Object::Function {
                 parameters,
                 body,
-                env: env.clone(),
+                env: Rc::clone(&env),
             },
             // prevent incorrect node type
             _ => NULL,
@@ -225,7 +224,7 @@ impl Evaluator {
         env: Env,
     ) -> Object {
         let function = match function {
-            Some(func) => self.eval(*func, env.clone()),
+            Some(func) => self.eval(*func, Rc::clone(&env)),
             None => return NULL,
         };
 
@@ -233,7 +232,7 @@ impl Evaluator {
             return function;
         }
 
-        let args = self.eval_expressions(arguments, env.clone());
+        let args = self.eval_expressions(arguments, Rc::clone(&env));
 
         if args.len() == 1 && args[0].is_error() {
             return args[0].clone();
@@ -245,13 +244,13 @@ impl Evaluator {
     fn apply_function(&self, function: Object, args: Vec<Object>) -> Object {
         match &function {
             Object::Function { body, .. } => {
-                let mut extended_env = match self.extend_function_env(function.clone(), args) {
+                let extended_env = match self.extend_function_env(function.clone(), args) {
                     Ok(env) => env,
                     Err(err) => return err,
                 };
 
                 let evaluated = match body {
-                    Some(bdy) => self.eval(*bdy.clone(), extended_env.clone()),
+                    Some(bdy) => self.eval(*bdy.clone(), Rc::clone(&extended_env)),
                     None => NULL,
                 };
 
@@ -275,7 +274,7 @@ impl Evaluator {
                 env: func_env,
                 ..
             } => {
-                let mut extended_env = Environment::new_enclosed(func_env.clone());
+                let mut extended_env = Environment::new_enclosed(Rc::clone(&func_env));
 
                 for (param, arg) in parameters.iter().zip(args.into_iter()) {
                     let param_name = match param {
@@ -304,7 +303,7 @@ impl Evaluator {
         let mut result = Vec::new();
 
         for expr in expressions {
-            let evaluated = self.eval(expr, environment.clone());
+            let evaluated = self.eval(expr, Rc::clone(&environment));
             if evaluated.is_error() {
                 return vec![evaluated]; // return the error in the vector
             }
@@ -324,7 +323,7 @@ impl Evaluator {
 
         let mut result = NULL;
         for statement in statements {
-            result = self.eval(statement, environment.clone());
+            result = self.eval(statement, Rc::clone(&environment));
 
             match result {
                 Object::ReturnValue(ref return_val) => match return_val.as_ref() {
