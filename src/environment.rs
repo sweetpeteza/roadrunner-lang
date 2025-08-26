@@ -1,48 +1,38 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::object::Object;
+
+pub type Env = Rc<RefCell<Environment>>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
     store: HashMap<String, Object>,
-    outer: Option<Box<Environment>>,
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Self::new()
-    }
+    outer: Option<Env>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
-        Environment {
+    pub fn new() -> Env {
+        Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
             outer: None,
-        }
+        }))
     }
 
-    pub fn new_enclosed(outer: Environment) -> Self {
-        Environment {
+    pub fn new_enclosed(outer: Env) -> Env {
+        Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
-            outer: Some(Box::new(outer)),
-        }
+            outer: Some(outer),
+        }))
     }
 
     pub fn get(&self, name: &str) -> Option<Object> {
         match self.store.get(name) {
             Some(obj) => Some(obj.clone()),
-            None => {
-                if let Some(outer) = &self.outer {
-                    outer.get(name)
-                } else {
-                    None
-                }
-            }
+            None => self.outer.as_ref()?.borrow().get(name),
         }
     }
 
     pub fn set(&mut self, name: &str, val: Object) {
-        self.store.insert(name.to_string(), val.clone());
+        self.store.insert(name.to_string(), val);
     }
 }

@@ -1,4 +1,4 @@
-use crate::{ast::Node, environment::Environment};
+use crate::{ast::Node, environment::{Env, Environment}};
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -11,7 +11,7 @@ pub enum Object {
     Function {
         parameters: Vec<Node>,
         body: Option<Box<Node>>,
-        env: Box<Environment>,
+        env: Env,
     },
 }
 

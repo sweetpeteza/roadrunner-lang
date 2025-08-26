@@ -2,8 +2,8 @@ use roadrunner::environment::Environment;
 use roadrunner::evaluator::Evaluator;
 use roadrunner::lexer::Lexer;
 use roadrunner::parser::Parser;
-use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 
 fn main() -> Result<(), anyhow::Error> {
     println!("Hello! This is the Roadrunner programming language!");
@@ -49,7 +49,7 @@ fn main() -> Result<(), anyhow::Error> {
 
                 let evaluator = Evaluator::new();
 
-                let evaluated = evaluator.eval(program, &mut environment);
+                let evaluated = evaluator.eval(program, environment.clone());
 
                 println!("{}", evaluated);
             }
