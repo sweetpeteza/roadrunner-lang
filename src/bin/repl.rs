@@ -1,5 +1,5 @@
 use roadrunner::environment::Environment;
-use roadrunner::evaluator::Evaluator;
+use roadrunner::evaluator::eval;
 use roadrunner::lexer::Lexer;
 use roadrunner::parser::Parser;
 use rustyline::error::ReadlineError;
@@ -27,14 +27,13 @@ fn main() -> Result<(), anyhow::Error> {
         tracing::info!("Tracing information initialized");
     }
 
-    let mut environment = Environment::new();
+    let environment = Environment::new();
 
     loop {
         tracing::debug!("Awaiting user input...");
         let readline = rl.readline("⚡: ");
         match readline {
             Ok(line) => {
-                // Tokenize the input here, for example:
                 let mut lexer = Lexer::new(&line);
                 let mut parser = Parser::new(&mut lexer);
                 tracing::debug!("Parsing program with input: {:?}", line);
@@ -47,9 +46,7 @@ fn main() -> Result<(), anyhow::Error> {
                     }
                 }
 
-                let evaluator = Evaluator::new();
-
-                let evaluated = evaluator.eval(program, environment.clone());
+                let evaluated = eval(program, environment.clone());
 
                 println!("{}", evaluated);
             }
