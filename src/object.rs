@@ -1,4 +1,4 @@
-use crate::{ast::Node, environment::{Env, Environment}};
+use crate::{ast::Node, environment::Env};
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone)]
