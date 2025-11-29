@@ -289,7 +289,6 @@ impl Evaluator {
                     extended_env.borrow_mut().set(&param_name, arg);
                 }
 
-                debug!("Extended function environment: {:?}", extended_env);
                 Ok(extended_env)
             }
             _ => Err(Object::Error(format!(
@@ -660,6 +659,25 @@ fn test_function_application(#[case] input: &str, #[case] expected: Object) {
     TRUE
 )]
 fn test_closures(#[case] input: &str, #[case] expected: Object) {
+    let mut lexer = Lexer::new(input);
+    let mut parser = Parser::new(&mut lexer);
+    let program = parser.parse_program();
+    let evaluator = Evaluator::new();
+    let env = Environment::new();
+    let evaluated = evaluator.eval(program, env);
+    assert_eq!(evaluated, expected);
+}
+
+#[rstest]
+#[case(
+    "let countdown = fn(n) { if (n == 0) { return 0; } else { countdown(n - 1); } }; countdown(50);",
+    Object::Integer(0)
+)]
+#[case(
+    "let countdown = fn(n) { if (n == 0) { return 0; } else { countdown(n - 1); } }; countdown(100);",
+    Object::Integer(0)
+)]
+fn test_deep_recursion(#[case] input: &str, #[case] expected: Object) {
     let mut lexer = Lexer::new(input);
     let mut parser = Parser::new(&mut lexer);
     let program = parser.parse_program();
