@@ -10,6 +10,3 @@ Thumbs.db
 
 # Compilation output
 target/
-
-# Rust specific
-Cargo.lock
