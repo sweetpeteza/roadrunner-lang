@@ -113,6 +113,21 @@ impl<'a> Lexer<'a> {
     }
 }
 
+// Implement Iterator trait for functional programming style
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let token = self.next_token();
+        if token == Token::Eof {
+            None
+        } else {
+            Some(token)
+        }
+    }
+}
+
+#[cfg(test)]
 #[rstest]
 fn test_next_token_simple() {
     let input = "=+(){},;";
